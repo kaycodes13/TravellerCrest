@@ -79,6 +79,8 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		#endregion
 
+		SifCrest.BindEvent = Bind.OnBindStart;
+
 		Logger.LogInfo($"Plugin {Name} ({Id}) has loaded!");
 	}
 }
