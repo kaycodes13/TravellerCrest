@@ -11,7 +11,7 @@ internal static class PassiveAbility {
 
 	private const float TOOL_DAMAGE_SCALING = 1.06f;
 
-	private static float BonusToolDamageMultiplier() {
+	private static float ToolDamageMultiplier() {
 		int masksMissing = PlayerData.instance.maxHealth - PlayerData.instance.health;
 		return 1 + TOOL_DAMAGE_SCALING * Mathf.Sqrt(masksMissing / 10f);
 	}
@@ -30,12 +30,10 @@ internal static class PassiveAbility {
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.ApplyDamageScaling))]
 	[HarmonyPostfix]
 	private static void ApplyBonusToolDamage(ref HitInstance __result) {
-		if (SifCrest.IsEquipped && __result.RepresentingTool) {
-			Log.LogWarning($"Masks Missing: {PlayerData.instance.maxHealth - PlayerData.instance.health} | Multiplier: {BonusToolDamageMultiplier()}");
+		if (!SifCrest.IsEquipped || !__result.RepresentingTool)
+			return;
 
-			__result.DamageDealt =
-				Mathf.RoundToInt(__result.DamageDealt * BonusToolDamageMultiplier());
-		}
+		__result.DamageDealt = Mathf.FloorToInt(__result.DamageDealt * ToolDamageMultiplier());
 	}
 
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]

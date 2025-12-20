@@ -12,8 +12,6 @@ namespace TravellerCrest.Mechanics;
 internal static class Bind {
 
 	internal static void OnBindStart(FsmInt masks, FsmInt numBinds, FsmFloat time, PlayMakerFSM fsm) {
-		Log.LogInfo("BIND START HANDLER");
-
 		if (Gameplay.MultibindTool.IsEquipped) {
 			numBinds.Value = 2;
 			time.Value = 0.8f;
