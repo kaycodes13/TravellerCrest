@@ -138,68 +138,72 @@ internal static class PassiveAbility {
 	private const float REFUND_NORMAL_DROP_RATE = 0.10f;
 	private const float REFUND_SNITCH_DROP_RATE = 0.10f;
 	private const float REFUND_DICE_MULT = 0.10f;
+
 	private const int REFUND_AMOUNT = 1;
 
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]
 	[HarmonyPostfix]
 	private static void EnemyDeathToolRefund(HealthManager __instance) {
-		__instance.OnDeath += () => SpawnRefundItem(REFUND_NORMAL_DROP_RATE, __instance);
+		__instance.OnDeath += () => SpawnRefundItems(REFUND_NORMAL_DROP_RATE, __instance);
 	}
 
 	[HarmonyPatch(typeof(HealthManager.StealLagHit), nameof(HealthManager.StealLagHit.OnEnd))]
 	[HarmonyPostfix]
 	private static void SnitchPickToolRefund(HealthManager.StealLagHit __instance) {
-		SpawnRefundItem(REFUND_SNITCH_DROP_RATE, __instance.healthManager);
+		SpawnRefundItems(REFUND_SNITCH_DROP_RATE, __instance.healthManager);
 	}
 
-	private static void SpawnRefundItem(float baseDropRate, HealthManager origin) {
+	private static void SpawnRefundItems(float baseDropRate, HealthManager origin) {
 		if (!SifCrest.IsEquipped || !origin.lastHitInstance.IsHeroDamage)
 			return;
 
-		int amount = GetRefundAmount(baseDropRate);
-		if (amount <= 0)
-			return;
+		IEnumerable<ToolItem> eligibleTools = 
+			ToolItemManager.GetCurrentEquippedTools()
+			.Where(x => x && x.IsAttackType() && x.HasLimitedUses());
 
-		ToolItem[] attackTools = [
-			.. ToolItemManager.GetCurrentEquippedTools().Where(x => x && x.IsAttackType())
-		];
-		if (attackTools.Length <= 0)
-			return;
-
-		RefundItem refund = ScriptableObject.CreateInstance<RefundItem>();
-		refund.tool = attackTools.GetRandomElement();
-		refund.amountRefunded = amount;
-
-		Vector3 spawnPoint = origin.transform.TransformPoint(origin.effectOrigin);
-
-		GameObject item = ObjectPool.Spawn(
-			prefab: Gameplay.CollectableItemPickupInstantPrefab.gameObject,
-			parent: null,
-			position: spawnPoint,
-			rotation: Quaternion.identity,
-			stealActiveSpawned: false
-		);
-		var itemOptions = item.GetComponent<CollectableItemPickup>();
-		itemOptions.SetItem(refund);
-
-		FlingUtils.FlingObject(new FlingUtils.SelfConfig {
-			Object = item,
-			SpeedMin = 15f,
-			SpeedMax = 30f,
-			AngleMin = 80f,
-			AngleMax = 100f,
-		}, origin.transform, origin.effectOrigin);
-	}
-
-	private static int GetRefundAmount(float baseDropRate) {
 		float bonus = 1;
 		if (Gameplay.LuckyDiceTool.IsEquipped)
 			bonus += REFUND_DICE_MULT;
 
-		float dropRate = baseDropRate * bonus;
-		Log.LogInfo($"BASE {baseDropRate} | BONUS {bonus} | FINAL {dropRate}");
+		foreach (ToolItem tool in eligibleTools) {
+			int max = ToolItemManager.GetToolStorageAmount(tool),
+				remaining = PlayerData.instance.Tools.GetData(tool.name).AmountLeft;
+			float missingPercent = (float)(max - remaining) / max;
 
-		ProbabilityInt[] dropAmounts = [
+			Log.LogInfo($"yonder tool is {tool.name} with {missingPercent:#0%} missing uses resulting in a base drop rate of {baseDropRate * missingPercent}, then the bonus of {bonus} makes it {baseDropRate * bonus * missingPercent}");
+
+			int amount = GetRefundAmount(baseDropRate * bonus * missingPercent);
+			if (amount <= 0)
+				continue;
+
+			RefundItem refund = ScriptableObject.CreateInstance<RefundItem>();
+			refund.tool = tool;
+			refund.amountRefunded = amount;
+
+			Vector3 spawnPoint = origin.transform.TransformPoint(origin.effectOrigin);
+
+			GameObject item = ObjectPool.Spawn(
+				prefab: Gameplay.CollectableItemPickupInstantPrefab.gameObject,
+				parent: null,
+				position: spawnPoint,
+				rotation: Quaternion.identity,
+				stealActiveSpawned: false
+			);
+			var itemOptions = item.GetComponent<CollectableItemPickup>();
+			itemOptions.SetItem(refund);
+
+			FlingUtils.FlingObject(new FlingUtils.SelfConfig {
+				Object = item,
+				SpeedMin = 15f,
+				SpeedMax = 30f,
+				AngleMin = 80f,
+				AngleMax = 100f,
+			}, origin.transform, origin.effectOrigin);
+		}
+	}
+
+	private static int GetRefundAmount(float dropRate) {
+		return Probability.GetRandomItemByProbability<ProbabilityInt, int>([
 			new() {
 				Value = 0,
 				Probability = 1 - dropRate
@@ -208,9 +212,7 @@ internal static class PassiveAbility {
 				Value = REFUND_AMOUNT,
 				Probability = dropRate
 			},
-		];
-
-		return Probability.GetRandomItemByProbability<ProbabilityInt, int>(dropAmounts);
+		]);
 	}
 
 	#endregion
