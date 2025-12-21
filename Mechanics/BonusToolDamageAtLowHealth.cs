@@ -13,7 +13,8 @@ namespace TravellerCrest.Mechanics;
 [HarmonyPatch]
 internal static class BonusToolDamageAtLowHealth {
 
-	private const float DAMAGE_SCALING = 1.06f;
+	// 0.53 gives a maximum bonus of 1.5x at 9 masks missing - similar to hunter crest bonus
+	private const float DAMAGE_SCALING = 0.53f;
 
 	private static float ToolDamageBonus() {
 		int masksMissing = PlayerData.instance.maxHealth - PlayerData.instance.health;

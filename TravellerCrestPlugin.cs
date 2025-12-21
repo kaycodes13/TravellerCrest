@@ -13,13 +13,12 @@ namespace TravellerCrest;
 
 TODO:
 
-- bind
-- passive ability
 - up/wall/side attacks
 - down attack (likely FSM)
 - dash attack (likely FSM)
 - charged attack (likely FSM)
 - config menu (possibly with debug options to tweak heroconfig, etc)
+- playtesting, tweaking math
 
 TO RESEARCH:
 
