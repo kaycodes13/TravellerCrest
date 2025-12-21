@@ -1,10 +1,10 @@
 ﻿using GlobalSettings;
 using HarmonyLib;
 using System.Linq;
-using UnityEngine;
-using ProbabilityInt = Probability.ProbabilityInt;
-using static TravellerCrest.TravellerCrestPlugin;
 using TravellerCrest.Data;
+using UnityEngine;
+using static TravellerCrest.TravellerCrestPlugin;
+using ProbabilityInt = Probability.ProbabilityInt;
 
 namespace TravellerCrest.Mechanics;
 
@@ -20,14 +20,126 @@ internal static class PassiveAbility {
 		return 1 + DAMAGE_SCALING * Mathf.Sqrt(masksMissing / 10f);
 	}
 
-	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.ApplyDamageScaling))]
+	private static int ApplyToolDamageMultiplier(int origDamage) {
+		return Mathf.FloorToInt(origDamage * ToolDamageMultiplier());
+
+		//#pragma warning disable Harmony003
+		//if (
+		//	( // is a non-skill tool, or is a skill with volt filament active
+		//		hit.RepresentingTool
+		//		&& (
+		//		hit.RepresentingTool.Type != ToolItemType.Skill
+		//		//|| Gameplay.ZapImbuementTool.IsEquipped
+		//		)
+		//	)
+		//	//||
+		//	//( // barbed bracelet or flintslate boost active
+		//	//	hit.IsNailDamage
+		//	//	&& (
+		//	//		Gameplay.BarbedWireTool.IsEquipped
+		//	//		|| hit.NailElement != NailElements.None
+		//	//		// leftover snitch pick boost in case designer changes mind
+		//	//		//|| (Gameplay.ThiefPickTool.IsEquipped && hit.Source.name.Contains("Harpoon"))
+		//	//	)
+		//	//)
+		//) {
+		//	return Mathf.FloorToInt(origDamage * ToolDamageMultiplier());
+		//}
+		//#pragma warning restore Harmony003
+
+		//return origDamage;
+	}
+
+	#region Tools with damage multipliers
+
+	[HarmonyPatch(typeof(Gameplay), nameof(Gameplay.BarbedWireDamageDealtMultiplier), MethodType.Getter)]
 	[HarmonyPostfix]
-	private static void ApplyBonusToolDamage(ref HitInstance __result) {
-		if (!SifCrest.IsEquipped || !__result.RepresentingTool)
+	private static void MultiplyBarbedWireMult(ref float __result) {
+		if (SifCrest.IsEquipped)
+			__result *= ToolDamageMultiplier();
+	}
+
+	[HarmonyPatch(typeof(Gameplay), nameof(Gameplay.ZapDamageMult), MethodType.Getter)]
+	[HarmonyPostfix]
+	private static void MultiplyVoltFilamentMult(ref float __result) {
+		if (SifCrest.IsEquipped)
+			__result *= ToolDamageMultiplier();
+	}
+
+	[HarmonyPatch(typeof(DamageEnemies), nameof(DamageEnemies.NailImbuement), MethodType.Getter)]
+	[HarmonyPostfix]
+	private static void MultiplyFlintslateMult(ref NailImbuementConfig __result) {
+		if (SifCrest.IsEquipped && __result) {
+			var newres = Object.Instantiate(__result);
+			newres.NailDamageMultiplier *= ToolDamageMultiplier();
+			__result = newres;
+		}
+	}
+
+	#endregion
+
+	#region Statuses & Tools which deal damage
+
+	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.TakeDamage))]
+	[HarmonyPrefix]
+	private static void BonusToolDamage(ref HitInstance hitInstance) {
+		if (!SifCrest.IsEquipped || !hitInstance.IsHeroDamage)
 			return;
 
-		__result.DamageDealt = Mathf.FloorToInt(__result.DamageDealt * ToolDamageMultiplier());
+		if ( // is a non-skill tool
+			hitInstance.RepresentingTool
+			&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
+		) {
+			hitInstance.DamageDealt = ApplyToolDamageMultiplier(hitInstance.DamageDealt);
+		}
 	}
+
+	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.LagHits))]
+	[HarmonyPrefix]
+	private static void BonusToolDamageLagHits(ref LagHitOptions options, ref HitInstance hitInstance) {
+		if (!SifCrest.IsEquipped || !hitInstance.IsHeroDamage)
+			return;
+
+		if (
+			(// is a non-skill tool
+				hitInstance.RepresentingTool
+				&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
+			)
+			||
+			(// is status damage from a tool
+				options.DamageType != LagHitDamageType.None
+				|| hitInstance.ToolDamageFlags.HasFlag(ToolDamageFlags.Searing) // just in case, for flintslate
+			)
+		) {
+			// Making a new object for safety since LagHitOptions is not a struct
+			options = new() {
+				HitDamage = ApplyToolDamageMultiplier(options.HitDamage),
+				HitCount = options.HitCount,
+				HitsGiveSilk = options.HitsGiveSilk,
+				HitDelay = options.HitDelay,
+				StartDelay = options.StartDelay,
+				DamageType = options.DamageType,
+				IgnoreBlock = options.IgnoreBlock,
+				MagnitudeMult = options.MagnitudeMult,
+				UseNailDamage = options.UseNailDamage,
+				NailDamageMultiplier = options.NailDamageMultiplier,
+				SlashEffectOverrides = options.SlashEffectOverrides,
+				NonLethalOverride = options.NonLethalOverride,
+			};
+		}
+	}
+
+	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.ApplyTagDamage))]
+	[HarmonyPrefix]
+	private static void BonusToolDamageTag(ref DamageTag.DamageTagInstance damageTagInstance) {
+		// DamageTagInstance.isHeroDamage is based on whether or not the source is a tool
+		if (!SifCrest.IsEquipped || !damageTagInstance.isHeroDamage)
+			return;
+
+		damageTagInstance.amount = ApplyToolDamageMultiplier(damageTagInstance.amount);
+	}
+
+	#endregion
 
 	#endregion
 
@@ -51,7 +163,7 @@ internal static class PassiveAbility {
 	}
 
 	private static void SpawnRefundItem(float baseDropRate, HealthManager origin) {
-		if (!SifCrest.IsEquipped)
+		if (!SifCrest.IsEquipped || !origin.lastHitInstance.IsHeroDamage)
 			return;
 
 		int amount = GetRefundAmount(baseDropRate);
