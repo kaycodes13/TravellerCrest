@@ -1,9 +1,14 @@
 ﻿using GlobalSettings;
 using HarmonyLib;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using TravellerCrest.Data;
 using UnityEngine;
 using static TravellerCrest.TravellerCrestPlugin;
+using static TravellerCrest.Utils.ILUtils;
 using ProbabilityInt = Probability.ProbabilityInt;
 
 namespace TravellerCrest.Mechanics;
@@ -23,36 +28,54 @@ internal static class PassiveAbility {
 	private static int ApplyBonusToDamage(int damage)
 		=> Mathf.FloorToInt(damage * ToolDamageBonus());
 
+	[HarmonyPatch(typeof(DamageEnemies), nameof(DamageEnemies.DoDamage), [typeof(GameObject), typeof(bool)])]
+	[HarmonyTranspiler]
+	private static IEnumerable<CodeInstruction> MultiplyToolMultipliers(
+		IEnumerable<CodeInstruction> instructions
+	) {
+		return new CodeMatcher(instructions)
+			#region Flintslate and Pollip Pouch
+			.Start()
+			.MatchEndForward([
+				new(x => CallRelaxed(x, $"get_{nameof(DamageEnemies.NailImbuement)}")),
+				new(x => Ldfld(x, nameof(NailImbuementConfig.NailDamageMultiplier))),
+				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+			])
+			.Insert([
+				new(OpCodes.Ldarg_0),
+				Transpilers.EmitDelegate(ApplyBonus),
+			])
+			#endregion
+			#region Barbed Bracelet
+			.Start()
+			.MatchEndForward([
+				new(x => CallRelaxed(x, $"get_{nameof(Gameplay.BarbedWireDamageDealtMultiplier)}")),
+				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+			])
+			.Insert([
+				new(OpCodes.Ldarg_0),
+				Transpilers.EmitDelegate(ApplyBonus),
+			])
+			#endregion
+			#region Volt Filament
+			.Start()
+			.MatchEndForward([
+				new(x => CallRelaxed(x, $"get_{nameof(Gameplay.ZapDamageMult)}")),
+				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+			])
+			.Insert([
+				new(OpCodes.Ldarg_0),
+				Transpilers.EmitDelegate(ApplyBonus),
+			])
+			#endregion
+			.InstructionEnumeration();
 
-	#region Tools with damage multipliers
-
-	[HarmonyPatch(typeof(Gameplay), nameof(Gameplay.BarbedWireDamageDealtMultiplier), MethodType.Getter)]
-	[HarmonyPostfix]
-	private static void MultiplyBarbedWireMult(ref float __result) {
-		if (SifCrest.IsEquipped)
-			__result *= ToolDamageMultiplier();
-	}
-
-	[HarmonyPatch(typeof(Gameplay), nameof(Gameplay.ZapDamageMult), MethodType.Getter)]
-	[HarmonyPostfix]
-	private static void MultiplyVoltFilamentMult(ref float __result) {
-		if (SifCrest.IsEquipped)
-			__result *= ToolDamageMultiplier();
-	}
-
-	[HarmonyPatch(typeof(DamageEnemies), nameof(DamageEnemies.NailImbuement), MethodType.Getter)]
-	[HarmonyPostfix]
-	private static void MultiplyFlintslateMult(ref NailImbuementConfig __result) {
-		if (SifCrest.IsEquipped && __result) {
-			var newres = Object.Instantiate(__result);
-			newres.NailDamageMultiplier *= ToolDamageMultiplier();
-			__result = newres;
+		static float ApplyBonus(float multiplier, DamageEnemies instance) {
+			if (SifCrest.IsEquipped && (instance.isHeroDamage || instance.sourceIsHero)) 
+				return multiplier * ToolDamageBonus();
+			return multiplier;
 		}
 	}
-
-	#endregion
-
-	#region Statuses & Tools which deal damage
 
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.TakeDamage))]
 	[HarmonyPrefix]
