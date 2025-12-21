@@ -2,7 +2,7 @@
 
 namespace TravellerCrest.Data;
 
-internal class RefundItem : SavedItem {
+internal class RefillItem : SavedItem {
 
 	public ToolItem tool;
 	public int amountRefunded = 1;
