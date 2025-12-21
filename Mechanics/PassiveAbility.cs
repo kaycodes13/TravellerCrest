@@ -15,40 +15,14 @@ internal static class PassiveAbility {
 
 	private const float DAMAGE_SCALING = 1.06f;
 
-	private static float ToolDamageMultiplier() {
+	private static float ToolDamageBonus() {
 		int masksMissing = PlayerData.instance.maxHealth - PlayerData.instance.health;
 		return 1 + DAMAGE_SCALING * Mathf.Sqrt(masksMissing / 10f);
 	}
 
-	private static int ApplyToolDamageMultiplier(int origDamage) {
-		return Mathf.FloorToInt(origDamage * ToolDamageMultiplier());
+	private static int ApplyBonusToDamage(int damage)
+		=> Mathf.FloorToInt(damage * ToolDamageBonus());
 
-		//#pragma warning disable Harmony003
-		//if (
-		//	( // is a non-skill tool, or is a skill with volt filament active
-		//		hit.RepresentingTool
-		//		&& (
-		//		hit.RepresentingTool.Type != ToolItemType.Skill
-		//		//|| Gameplay.ZapImbuementTool.IsEquipped
-		//		)
-		//	)
-		//	//||
-		//	//( // barbed bracelet or flintslate boost active
-		//	//	hit.IsNailDamage
-		//	//	&& (
-		//	//		Gameplay.BarbedWireTool.IsEquipped
-		//	//		|| hit.NailElement != NailElements.None
-		//	//		// leftover snitch pick boost in case designer changes mind
-		//	//		//|| (Gameplay.ThiefPickTool.IsEquipped && hit.Source.name.Contains("Harpoon"))
-		//	//	)
-		//	//)
-		//) {
-		//	return Mathf.FloorToInt(origDamage * ToolDamageMultiplier());
-		//}
-		//#pragma warning restore Harmony003
-
-		//return origDamage;
-	}
 
 	#region Tools with damage multipliers
 
@@ -90,7 +64,7 @@ internal static class PassiveAbility {
 			hitInstance.RepresentingTool
 			&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
 		) {
-			hitInstance.DamageDealt = ApplyToolDamageMultiplier(hitInstance.DamageDealt);
+			hitInstance.DamageDealt = ApplyBonusToDamage(hitInstance.DamageDealt);
 		}
 	}
 
@@ -106,26 +80,21 @@ internal static class PassiveAbility {
 				&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
 			)
 			||
-			(// is status damage from a tool
+			(// is status damage (which we assume is from a tool)
 				options.DamageType != LagHitDamageType.None
 				|| hitInstance.ToolDamageFlags.HasFlag(ToolDamageFlags.Searing) // just in case, for flintslate
 			)
 		) {
-			// Making a new object for safety since LagHitOptions is not a struct
-			options = new() {
-				HitDamage = ApplyToolDamageMultiplier(options.HitDamage),
-				HitCount = options.HitCount,
-				HitsGiveSilk = options.HitsGiveSilk,
-				HitDelay = options.HitDelay,
-				StartDelay = options.StartDelay,
-				DamageType = options.DamageType,
-				IgnoreBlock = options.IgnoreBlock,
-				MagnitudeMult = options.MagnitudeMult,
-				UseNailDamage = options.UseNailDamage,
-				NailDamageMultiplier = options.NailDamageMultiplier,
-				SlashEffectOverrides = options.SlashEffectOverrides,
-				NonLethalOverride = options.NonLethalOverride,
-			};
+			var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+			var type = options.GetType();
+			var newOps = (LagHitOptions)RuntimeHelpers.GetUninitializedObject(type);
+
+			foreach(FieldInfo fi in type.GetAllFields(flags))
+				fi.SetValue(newOps, fi.GetValue(options));
+
+			newOps.HitDamage = ApplyBonusToDamage(options.HitDamage);
+
+			options = newOps;
 		}
 	}
 
@@ -136,10 +105,8 @@ internal static class PassiveAbility {
 		if (!SifCrest.IsEquipped || !damageTagInstance.isHeroDamage)
 			return;
 
-		damageTagInstance.amount = ApplyToolDamageMultiplier(damageTagInstance.amount);
+		damageTagInstance.amount = ApplyBonusToDamage(damageTagInstance.amount);
 	}
-
-	#endregion
 
 	#endregion
 
