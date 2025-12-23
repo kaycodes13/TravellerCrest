@@ -3,8 +3,8 @@ using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
 using TravellerCrest.Data;
+using TravellerCrest.Utils;
 using UnityEngine;
-using ProbabilityInt = Probability.ProbabilityInt;
 using static TravellerCrest.TravellerCrestPlugin;
 
 namespace TravellerCrest.Mechanics;
@@ -14,9 +14,11 @@ internal static class EnemiesDropToolRefills {
 
 	private const float DROP_RATE_NORMAL = 0.10f;
 	private const float DROP_RATE_SNITCH_PICK = 0.10f;
-	private const float DROP_RATE_DICE_BONUS = 0.10f;
 
-	private const int REFILL_AMOUNT = 1;
+	private const float DROP_RATE_DICE_BONUS = 1.10f;
+
+	private const float REFILL_PERCENT = 0.10f;
+
 
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]
 	[HarmonyPostfix]
@@ -30,43 +32,36 @@ internal static class EnemiesDropToolRefills {
 		SpawnRefillItems(DROP_RATE_SNITCH_PICK, __instance.healthManager);
 	}
 
-	private static int GetAmountRefilled(float dropRate) {
-		return Probability.GetRandomItemByProbability<ProbabilityInt, int>([
-			new() {
-				Value = 0,
-				Probability = 1 - dropRate
-			},
-			new() {
-				Value = REFILL_AMOUNT,
-				Probability = dropRate
-			},
-		]);
+	private static int GetAmountRefilled(int toolCapacity) {
+		float rawAmount = toolCapacity * REFILL_PERCENT;
+		float chanceToCeil = rawAmount - System.MathF.Truncate(rawAmount);
+
+		return ProbabilityUtils.GetRandomBool(chanceToCeil)
+			? Mathf.CeilToInt(rawAmount)
+			: Mathf.FloorToInt(rawAmount);
 	}
 
-	private static void SpawnRefillItems(float baseDropRate, HealthManager origin) {
+	private static void SpawnRefillItems(float dropRate, HealthManager origin) {
 		if (!SifCrest.IsEquipped || !origin.lastHitInstance.IsHeroDamage)
 			return;
+
+		if (Gameplay.LuckyDiceTool.IsEquipped)
+			dropRate *= DROP_RATE_DICE_BONUS;
 
 		IEnumerable<ToolItem> eligibleTools =
 			ToolItemManager.GetCurrentEquippedTools()
 			.Where(x => x && x.IsAttackType() && x.HasLimitedUses());
 
-		float bonus = 1;
-		if (Gameplay.LuckyDiceTool.IsEquipped)
-			bonus += DROP_RATE_DICE_BONUS;
-
 		foreach (ToolItem tool in eligibleTools) {
-			int max = ToolItemManager.GetToolStorageAmount(tool),
+			int capacity = ToolItemManager.GetToolStorageAmount(tool),
 				remaining = PlayerData.instance.Tools.GetData(tool.name).AmountLeft;
-			float missingPercent = (float)(max - remaining) / max;
+			float missingPercent = (float)(capacity - remaining) / capacity,
+				scaledDropRate = dropRate * missingPercent;
 
-			Log.LogInfo(
-				$"tool: {tool.name} | missing: {missingPercent:#0%} | " +
-				$"drop rate: {baseDropRate * missingPercent} | " +
-				$"with bonus ({bonus}): {baseDropRate * missingPercent * bonus}"
-			);
+			if (!ProbabilityUtils.GetRandomBool(scaledDropRate))
+				continue;
 
-			int amount = GetAmountRefilled(baseDropRate * missingPercent * bonus);
+			int amount = GetAmountRefilled(capacity);
 			if (amount <= 0)
 				continue;
 
@@ -92,6 +87,10 @@ internal static class EnemiesDropToolRefills {
 				AngleMax = 100f,
 			}, origin.transform, origin.effectOrigin);
 		}
+	}
+
+	[HarmonyPatch]
+	private static class Patches {
 	}
 
 }

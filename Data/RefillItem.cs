@@ -6,7 +6,6 @@ internal class RefillItem : SavedItem {
 
 	public ToolItem tool;
 	public int amountRefunded = 1;
-	public float percentRefunded = 0.10f;
 
 	public override bool CanGetMore() => true;
 
