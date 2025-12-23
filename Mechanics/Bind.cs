@@ -4,7 +4,6 @@ using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using Silksong.FsmUtil;
 using System;
-using static TravellerCrest.TravellerCrestPlugin;
 
 namespace TravellerCrest.Mechanics;
 

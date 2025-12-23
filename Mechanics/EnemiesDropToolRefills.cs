@@ -5,7 +5,6 @@ using System.Linq;
 using TravellerCrest.Data;
 using TravellerCrest.Utils;
 using UnityEngine;
-using static TravellerCrest.TravellerCrestPlugin;
 
 namespace TravellerCrest.Mechanics;
 

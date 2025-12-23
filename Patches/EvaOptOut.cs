@@ -1,9 +1,8 @@
 ﻿using HarmonyLib;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
-using static TravellerCrest.TravellerCrestPlugin;
 
-namespace QueenCrest.Patches;
+namespace TravellerCrest.Patches;
 
 [HarmonyPatch(typeof(CountCrestUnlockPoints), nameof(CountCrestUnlockPoints.OnEnter))]
 internal static class EvaOptOut {

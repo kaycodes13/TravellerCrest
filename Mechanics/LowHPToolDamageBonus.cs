@@ -5,13 +5,12 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using static TravellerCrest.TravellerCrestPlugin;
 using static TravellerCrest.Utils.ILUtils;
 
 namespace TravellerCrest.Mechanics;
 
 [HarmonyPatch]
-internal static class BonusToolDamageAtLowHealth {
+internal static class LowHPToolDamageBonus {
 
 	// 0.53 gives a maximum bonus of 1.5x at 9 masks missing - similar to hunter crest bonus
 	private const float DAMAGE_SCALING = 0.53f;
