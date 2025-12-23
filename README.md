@@ -10,7 +10,7 @@ This crest also features a multi-colour tool slot; a purple slot to which you ca
 
 ## Installation
 
-Install via r2modman or Thunderstore Mod Manager. QueenCrest's dependencies should be installed automatically.
+Install via r2modman or Thunderstore Mod Manager. Crest of a Traveller's dependencies should be installed automatically.
 
 For manual installation, extract the `.zip` file and place the resulting **folder** in the `BepInEx/plugins` directory for your Silksong install. You'll also have to manually install Traveller Crest's dependencies:
 * [I18N](<https://thunderstore.io/c/hollow-knight-silksong/p/silksong_modding/I18N/>),
