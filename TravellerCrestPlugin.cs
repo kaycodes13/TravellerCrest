@@ -4,6 +4,7 @@ using HarmonyLib;
 using Needleforge;
 using Needleforge.Data;
 using TeamCherry.Localization;
+using TravellerCrest.Data;
 using TravellerCrest.Mechanics;
 using UnityEngine;
 
@@ -84,4 +85,5 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		Logger.LogInfo($"Plugin {Name} ({Id}) has loaded!");
 	}
+
 }

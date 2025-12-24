@@ -1,6 +1,7 @@
 ﻿using HutongGames.PlayMaker;
 using Needleforge.Attacks;
 using Needleforge.Data;
+using TravellerCrest.Data;
 using UnityEngine;
 
 namespace TravellerCrest.Mechanics;
@@ -24,8 +25,7 @@ internal static class Moveset {
 	internal static void Setup() {
 		SifCrest.Moveset.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
 
-		SifCrest.Moveset.OnInitialized += BorrowAnimations;
-
+		Cfg.heroAnimOverrideLib = AnimationManager.library;
 		Cfg.canBind = true;
 		Cfg.forceBareInventory = false;
 		Cfg.SetCanUseAbilities(true);
@@ -36,20 +36,6 @@ internal static class Moveset {
 		ChargedSlash();
 	}
 
-	private static void BorrowAnimations() {
-		if (BorrowedAnims.clips?.Length > 0)
-			return;
-
-		var wanderer = ToolItemManager.GetCrestByName("Wanderer").HeroConfig;
-		BorrowedAnims.clips = [
-			wanderer.GetAnimationClip("SlashEffect"),
-			wanderer.GetAnimationClip("SlashEffectAlt"),
-			wanderer.GetAnimationClip("DownSlashEffect"),
-		];
-		BorrowedAnims.isValid = false;
-		BorrowedAnims.ValidateLookup();
-	}
-
 	private static void SimpleAttacks() {
 		Cfg.wallSlashSlowdown = false;
 		Cfg.SetAttackFields(
@@ -58,7 +44,8 @@ internal static class Moveset {
 		);
 
 		SifCrest.Moveset.Slash = new Attack {
-			AnimLibrary = BorrowedAnims,
+			Name = "Neutral",
+			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffect",
 			Hitbox = [
 				new(-3.34f, 0.17f),
@@ -72,7 +59,8 @@ internal static class Moveset {
 		};
 
 		SifCrest.Moveset.AltSlash = new Attack {
-			AnimLibrary = BorrowedAnims,
+			Name = "NeutralAlt",
+			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
 			Hitbox = [
 				new(-3.16f, -0.1f),
@@ -86,7 +74,8 @@ internal static class Moveset {
 		};
 
 		SifCrest.Moveset.UpSlash = new Attack {
-			AnimLibrary = BorrowedAnims,
+			Name = "Up",
+			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffect",
 			Hitbox = [
 				new(0.98f, -0.58f),
@@ -102,7 +91,8 @@ internal static class Moveset {
 		SifCrest.Moveset.OnInitialized += RotateUpslash;
 
 		SifCrest.Moveset.WallSlash = new Attack {
-			AnimLibrary = BorrowedAnims,
+			Name = "Wall",
+			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
 			Hitbox = [
 				new(-3.09f, -0.1f),
@@ -132,7 +122,8 @@ internal static class Moveset {
 		//Cfg.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
 		SifCrest.Moveset.DownSlash = new DownAttack {
-			AnimLibrary = BorrowedAnims,
+			Name = "Down",
+			AnimLibrary = AnimationManager.library,
 			AnimName = "DownSlashEffect",
 			Hitbox = [
 				new(2.19f, -0.24f),
@@ -144,7 +135,24 @@ internal static class Moveset {
 				new(-1.84f, -0.25f),
 			],
 			Scale = new(0.8f, 1f),
-			StunDamage = 0.8f,
+			StunDamage = STUN_DAMAGE / 2,
+			DamageMult = 0.55f,
+		};
+		SifCrest.Moveset.AltDownSlash = new DownAttack {
+			Name = "DownAlt",
+			AnimLibrary = AnimationManager.library,
+			AnimName = "DownSlashEffect",
+			Hitbox = [
+				new(2.19f, -0.24f),
+				new(2.07f, -1.49f),
+				new(1.23f, -2.15f),
+				new(0.16f, -2.44f),
+				new(-1.23f, -2.23f),
+				new(-1.82f, -1.59f),
+				new(-1.84f, -0.25f),
+			],
+			Scale = new(-0.8f, 1f),
+			StunDamage = STUN_DAMAGE / 2,
 			DamageMult = 0.55f,
 		};
 
