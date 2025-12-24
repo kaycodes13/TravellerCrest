@@ -12,14 +12,24 @@
 	{ "CopyEntire": { "Name": "DownSlashEffect", "Crest": "Wanderer" } },
 
 	{
-		"Name": "Slash_Charged",
+		"Name": "Slash_Charged Antic",
 		"Fps": 20,
 		"WrapMode": "Once",
-		"Triggers": [ 5 ],
+		"Triggers": [],
 		"Composite": [
-			{ "Frame": 0, "Repeat": 5, "Name": "ToolThrowAlt Q" },
+			{ "Frame": 0, "Repeat": 4, "Name": "ToolThrowAlt Q" }
+		]
+	},
+
+	{
+		"Name": "Slash_Charged",
+		"Fps": 18,
+		"WrapMode": "Once",
+		"Triggers": [ 1, 6 ],
+		"Composite": [
 			{ "Start": 1, "End": 5, "Name": "ToolThrowAlt Q" },
-			{ "Start": 1, "End": 7, "Name": "ToolThrow Q" }
+			{ "Start": 1, "End": 7, "Name": "ToolThrow Q" },
+			{ "Frame": 7, "Name": "ToolThrow Q" }
 		]
 	},
 

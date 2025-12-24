@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using TravellerCrest.Utils;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 using WrapMode = tk2dSpriteAnimationClip.WrapMode;
@@ -25,6 +26,10 @@ internal static class AnimationManager {
 
 		library = libobj.AddComponent<tk2dSpriteAnimation>();
 		library.clips = [];
+
+		#if DEBUG
+		libobj.AddComponent<RedoTriggers>();
+		#endif
 
 		Assembly asm = Assembly.GetExecutingAssembly();
 

@@ -1,8 +1,11 @@
 ﻿using HutongGames.PlayMaker;
+using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
+using Silksong.FsmUtil;
 using TravellerCrest.Data;
 using UnityEngine;
+using Camera = GlobalSettings.Camera;
 
 namespace TravellerCrest.Mechanics;
 
@@ -10,17 +13,6 @@ internal static class Moveset {
 	private static HeroConfigNeedleforge Cfg => SifCrest.Moveset.HeroConfig!;
 
 	private const float STUN_DAMAGE = 0.8f;
-
-	private static readonly tk2dSpriteAnimation BorrowedAnims;
-
-	static Moveset() {
-		GameObject libobj = new($"{SifId} Anims Borrowed") {
-			hideFlags = HideFlags.HideAndDontSave
-		};
-		Object.DontDestroyOnLoad(libobj);
-
-		BorrowedAnims = libobj.AddComponent<tk2dSpriteAnimation>();
-	}
 
 	internal static void Setup() {
 		SifCrest.Moveset.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
@@ -170,7 +162,143 @@ internal static class Moveset {
 		);
 	}
 
+	#region Charged Slash
+
 	private static void ChargedSlash() {
-	
+		Cfg.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
+
+		Vector2 distance = new(-4, 0f);
+		float duration = 0.4f;
+		AnimationCurve easeOut = new(
+			new Keyframe(time: 0, value: 0, inTangent: 0, outTangent: 3),
+			new Keyframe(time: 1, value: 1, inTangent: 0, outTangent: 0)
+		);
+
+		SifCrest.Moveset.ChargedSlash = new ChargedAttack {
+			Name = "Charged",
+			PlayOnActivation = false,
+			PlayStepsInSequence = false,
+			KeepXPosition = true,
+			KeepYPosition = true,
+			CameraShakeProfiles = [Camera.TinyShake],
+			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
+			Steps = [
+				new TravellingChargeAttackStep {
+					AnimName = "Slash_Charged Effect TEST",
+					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
+					CameraShakeIndex = 0,
+					ScreenFlashIndex = 0,
+					Travel = new() {
+						Distance = distance, Duration = duration, Curve = easeOut,
+					},
+					Scale = new(0.5f, 2),
+				},
+				new TravellingChargeAttackStep {
+					AnimName = "Slash_Charged Effect TEST",
+					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
+					CameraShakeIndex = 0,
+					ScreenFlashIndex = 0,
+					Travel = new() {
+						Distance = distance, Duration = duration, Curve = easeOut,
+					},
+				}
+			]
+		};
+		SifCrest.Moveset.ChargedSlash.SetAnimLibrary(AnimationManager.library);
 	}
+
+	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+		FsmOwnerDefault
+			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner },
+			ownerAttack = new() {
+				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
+				GameObject = SifCrest.Moveset.ChargedSlash!.GameObject!
+			},
+			ownerStepOne = new() {
+				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
+				GameObject = SifCrest.Moveset.ChargedSlash!.Steps[0].GameObject!
+			},
+			ownerStepTwo = new() {
+				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
+				GameObject = SifCrest.Moveset.ChargedSlash!.Steps[1].GameObject!
+			};
+
+		FsmState
+			beginAttackState = fsm.AddState($"{SifId} Attack Starting"),
+			stepOneState = fsm.AddState($"{SifId} Attack Step 1"),
+			stepTwoState = fsm.AddState($"{SifId} Attack Step 2");
+
+		// Play hornet antic anim, decelerate
+		startState.AddActions(
+			new Tk2dPlayAnimationWithEvents {
+				gameObject = ownerHornet,
+				clipName = "Slash_Charged Antic",
+				animationCompleteEvent = FsmEvent.Finished,
+			},
+			new DecelerateV2 {
+				gameObject = ownerHornet,
+				deceleration = 0.85f,
+				brakeOnExit = true,
+			},
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.RequireReceiver,
+				functionCall = new() { FunctionName = nameof(SpriteFlash.flashFocusHeal) }
+			}
+		);
+		startState.AddTransition(FsmEvent.Finished.name, beginAttackState.name);
+
+		// Play hornet attack anim, start first step on the first anim trigger
+		beginAttackState.AddActions(
+			new SetBoolValue {
+				boolVariable = fsm.GetBoolVariable("Is Anim Finished"),
+				boolValue = false,
+			},
+			new Tk2dPlayAnimationWithEvents {
+				gameObject = ownerHornet,
+				clipName = "Slash_Charged",
+				animationTriggerEvent = FsmEvent.Finished,
+			}
+		);
+		beginAttackState.AddTransition(FsmEvent.Finished.name, stepOneState.name);
+
+		// Fire first attack, start second step on second anim trigger
+		stepOneState.AddActions(
+			new ActivateGameObject {
+				gameObject = ownerAttack,
+				activate = true,
+				recursive = false,
+			},
+			new SendMessageV2 {
+				gameObject = ownerStepOne,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
+			},
+			new Tk2dWatchAnimationEvents {
+				gameObject = ownerHornet,
+				animationTriggerEvent = FsmEvent.Finished
+			}
+		);
+		stepOneState.AddTransition(FsmEvent.Finished.name, stepTwoState.name);
+
+		// Fire second attack, return control to hornet when done
+		stepTwoState.AddActions(
+			new SendMessageV2 {
+				gameObject = ownerStepTwo,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
+			},
+			new Tk2dWatchAnimationEvents {
+				gameObject = ownerHornet,
+				animationTriggerEvent = FsmEvent.Finished
+			}
+		);
+
+		endStates = [stepTwoState];
+	}
+
+	#endregion
 }
