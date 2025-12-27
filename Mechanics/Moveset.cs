@@ -108,7 +108,7 @@ internal static class Moveset {
 		Cfg.SetDownspikeFields(
 			anticTime: 0.09f,
 			time: 0.16f,
-			recoveryTime: 0.09f
+			recoveryTime: 0.24f
 		);
 		Cfg.downSlashType = HeroControllerConfig.DownSlashTypes.Slash;
 		//Cfg.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
@@ -167,19 +167,20 @@ internal static class Moveset {
 	private static void ChargedSlash() {
 		Cfg.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
 
+		const float endLagMult = 3f;
+
 		Vector2 distance = new(-4, 0f);
-		float duration = 0.4f;
+		float duration = 0.4f * endLagMult;
 		AnimationCurve easeOut = new(
 			new Keyframe(time: 0, value: 0, inTangent: 0, outTangent: 3),
-			new Keyframe(time: 1, value: 1, inTangent: 0, outTangent: 0)
+			new Keyframe(time: 1f / endLagMult, value: 1),
+			new Keyframe(time: 1, value: 1)
 		);
 
 		SifCrest.Moveset.ChargedSlash = new ChargedAttack {
 			Name = "Charged",
 			PlayOnActivation = false,
 			PlayStepsInSequence = false,
-			KeepXPosition = true,
-			KeepYPosition = true,
 			CameraShakeProfiles = [Camera.TinyShake],
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
@@ -226,7 +227,8 @@ internal static class Moveset {
 		FsmState
 			beginAttackState = fsm.AddState($"{SifId} Attack Starting"),
 			stepOneState = fsm.AddState($"{SifId} Attack Step 1"),
-			stepTwoState = fsm.AddState($"{SifId} Attack Step 2");
+			stepTwoState = fsm.AddState($"{SifId} Attack Step 2"),
+			recoveryState = fsm.AddState($"{SifId} Recovery");
 
 		// Play hornet antic anim, decelerate
 		startState.AddActions(
@@ -283,7 +285,7 @@ internal static class Moveset {
 		);
 		stepOneState.AddTransition(FsmEvent.Finished.name, stepTwoState.name);
 
-		// Fire second attack, return control to hornet when done
+		// Fire second attack, start recovering when anim finished
 		stepTwoState.AddActions(
 			new SendMessageV2 {
 				gameObject = ownerStepTwo,
@@ -293,11 +295,23 @@ internal static class Moveset {
 			},
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
-				animationTriggerEvent = FsmEvent.Finished
+				animationCompleteEvent = FsmEvent.Finished,
+			}
+		);
+		stepTwoState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
+
+		recoveryState.AddActions(
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() {
+					FunctionName = nameof(HeroController.SetStartWithDownSpikeEnd)
+				}
 			}
 		);
 
-		endStates = [stepTwoState];
+		endStates = [recoveryState];
 	}
 
 	#endregion

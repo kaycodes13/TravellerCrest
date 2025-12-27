@@ -68,15 +68,6 @@ internal class AttackTravel {
 
 	#endregion
 
-	private static GameObject ImpactRegular {
-		get {
-			if (!_impactRegular)
-				_impactRegular = GameObject.Find("shaman_blade_impact");
-			return _impactRegular;
-		}
-	}
-	private static GameObject? _impactRegular;
-
 	protected NailSlashTravel? nsTravel;
 
 	internal void Initialize(GameObject owner) {
@@ -94,7 +85,9 @@ internal class AttackTravel {
 		nsTravel!.maxXOffset = new TeamCherry.SharedUtils.OverrideFloat();
 		nsTravel!.maxYOffset = new TeamCherry.SharedUtils.OverrideFloat();
 
-		nsTravel!.impactPrefab = ImpactRegular;
+		nsTravel!.impactPrefab =
+			nsTravel!.slash.hc.transform.Find("Attacks/Shaman/Slash")
+			.GetComponent<NailSlashTravel>().impactPrefab;
 
 		nsTravel!.groundedYOffset = GroundedYOffset;
 		nsTravel!.travelDistance = Distance;
