@@ -153,6 +153,9 @@ internal static class Moveset {
 		}
 	}
 
+
+	#region Dash Slash
+
 	private static void DashSlash() {
 		Cfg.SetDashStabFields(
 			time: 0.12f,
@@ -160,7 +163,148 @@ internal static class Moveset {
 			bounceJumpSpeed: 18.6f,
 			forceShortBounce: false
 		);
+		Cfg.DashSlashFsmEdit = DashSlashFsmEdit;
+
+		const float endLagMult = 3f;
+
+		Vector2 distance = new(-4, 0f);
+		float duration = 0.4f * endLagMult;
+		AnimationCurve easeOut = new(
+			new Keyframe(time: 0, value: 0, inTangent: 0, outTangent: 3),
+			new Keyframe(time: 1f / endLagMult, value: 1),
+			new Keyframe(time: 1, value: 1)
+		);
+
+		SifCrest.Moveset.DashSlash = new DashAttack {
+			Name = "Dash",
+			Steps = [
+				new TravellingDashAttackStep {
+					AnimName = "Dash Attack Effect TEST",
+					Hitbox = [new(0, -1), new(0, 1), new(-2, 1), new(-2, -1)],
+					Travel = new() {
+						Distance = distance, Duration = duration, Curve = easeOut,
+					}
+				}
+			]
+		};
+		SifCrest.Moveset.DashSlash.SetAnimLibrary(AnimationManager.library);
 	}
+
+	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+		FsmOwnerDefault
+			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner },
+			ownerAttack = new() {
+				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
+				GameObject = SifCrest.Moveset.DashSlash!.Steps[0].GameObject!
+			};
+
+		FsmState
+			slashState = fsm.AddState($"{SifId} Slash"),
+			endState = fsm.AddState($"{SifId} End");
+
+		// Play antic, slow down, relinquishing control stuff
+		startState.AddActions(
+			new Tk2dPlayAnimationWithEvents {
+				gameObject = ownerHornet,
+				clipName = "Dash Attack Antic",
+				animationCompleteEvent = FsmEvent.Finished,
+			},
+			new PlayRandomAudioClipTableV2 {
+				Table = HeroController.instance.attackAudioTable,
+				SpawnPoint = ownerHornet,
+				SpawnPosition = Vector3.zero, AudioPlayerPrefab = new(), ForcePlay = false
+			},
+			new DecelerateV2 {
+				gameObject = ownerHornet,
+				deceleration = 0.65f,
+				brakeOnExit = false,
+			},
+			new CallMethodProper {
+				gameObject = ownerHornet,
+				behaviour = nameof(HeroController),
+				methodName = nameof(HeroController.SetAllowRecoilWhileRelinquished),
+				parameters = [new() { boolValue = true, type = VariableType.Bool }],
+				storeResult = new()
+			}
+		);
+		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
+
+		// Play anim attack and audio, start attack, disable gravity, leap back
+		slashState.AddActions(
+			new Tk2dPlayAnimationWithEvents {
+				gameObject = ownerHornet,
+				clipName = "Dash Attack",
+				animationCompleteEvent = FsmEvent.Finished,
+			},
+			new SendMessageV2 {
+				gameObject = ownerAttack,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
+			},
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() {
+					FunctionName = nameof(HeroController.AffectedByGravity),
+					BoolParameter = false, ParameterType = "bool"
+				}
+			},
+			new SetVelocityByScale {
+				gameObject = ownerHornet,
+				speed = 25f,
+				ySpeed = 14.5f,
+				everyFrame = false,
+			},
+			new SetHeroCState {
+				VariableName = nameof(HeroController.cState.onGround),
+				Value = false,
+			},
+			new DecelerateV2 {
+				gameObject = ownerHornet,
+				deceleration = 0.95f,
+				brakeOnExit = false,
+			}
+		);
+		slashState.AddTransition(FsmEvent.Finished.name, endState.name);
+
+		// re-enable gravity, set attack cooldown, etc
+		endState.AddActions(
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(HeroController.SetStartFromReaperUpperslash) }
+			},
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(HeroController.CrestAttackRecovery) }
+			},
+			new SendMessageV2 {
+				gameObject = ownerHornet,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() {
+					FunctionName = nameof(HeroController.AffectedByGravity),
+					BoolParameter = true, ParameterType = "bool"
+				}
+			},
+			new CallMethodProper {
+				gameObject = ownerHornet,
+				behaviour = nameof(HeroController),
+				methodName = nameof(HeroController.SetAllowRecoilWhileRelinquished),
+				parameters = [new() { boolValue = false, type = VariableType.Bool }],
+				storeResult = new()
+			}
+		);
+
+		endStates = [endState];
+	}
+
+	#endregion
 
 	#region Charged Slash
 

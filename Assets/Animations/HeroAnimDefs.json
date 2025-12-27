@@ -39,5 +39,13 @@
 		"WrapMode": "Once",
 		"Triggers": [ 0, 19 ],
 		"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
+	},
+
+	{
+		"Name": "Dash Attack Effect TEST",
+		"Fps": 15,
+		"WrapMode": "Once",
+		"Triggers": [ 0, 19 ],
+		"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
 	}
 ]
