@@ -286,11 +286,11 @@ internal static class Moveset {
 		secondStepState.AddTransition(leavingSceneEvent.name, missState.name);
 
 		// if queued bounce, redirect to bounce; if not, end normally
+		missState.AddAction(new BoolTest {
+			boolVariable = bounceAtEnd,
+			isTrue = bounceAnywayEvent
+		});
 		missState.AddLambdaMethod(finished => {
-			if (bounceAtEnd.Value == true) {
-				fsm.Fsm.Event(bounceAnywayEvent);
-				finished();
-			}
 			HeroController.instance.cState.downAttacking = false;
 			HeroController.instance.rb2d.linearVelocity = Vector2.zero;
 			HeroController.instance.FinishDownspike(true);
