@@ -3,9 +3,11 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Needleforge;
 using Needleforge.Data;
+using System.Reflection;
 using TeamCherry.Localization;
 using TravellerCrest.Mechanics;
 using UnityEngine;
+using static Silksong.UnityHelper.Util.SpriteUtil;
 
 namespace TravellerCrest;
 
@@ -63,14 +65,21 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		#region Tool Slots
 
-		SifCrest.AddRedSlot(AttackToolBinding.Up, new(0, 2), false);
-		SifCrest.AddSkillSlot(AttackToolBinding.Neutral, new(0, 0), false);
-		SifCrest.AddToolSlot(Purple.Type, AttackToolBinding.Down, new(0, -2), false);
+		Assembly asm = Assembly.GetExecutingAssembly();
+		const string path = $"{nameof(TravellerCrest)}.Assets.Sprites";
 
-		SifCrest.AddBlueSlot(new(-2, 1.5f), false);
-		SifCrest.AddBlueSlot(new(-2, -1.5f), false);
-		SifCrest.AddYellowSlot(new(2, 1.5f), false);
-		SifCrest.AddYellowSlot(new(2, -1.5f), false);
+		SifCrest.RealSprite = LoadEmbeddedSprite(asm, $"{path}.crest_lines.png", pixelsPerUnit: 100);
+		SifCrest.Silhouette = LoadEmbeddedSprite(asm, $"{path}.crest_silhouette.png", pixelsPerUnit: 200);
+		SifCrest.CrestGlow = LoadEmbeddedSprite(asm, $"{path}.crest_glow.png", pixelsPerUnit: 284);
+
+		SifCrest.AddRedSlot(AttackToolBinding.Up, new(-0.13f, 2.59f), false);
+		SifCrest.AddSkillSlot(AttackToolBinding.Neutral, new(0.15f, -0.32f), false);
+		SifCrest.AddToolSlot(Purple.Type, AttackToolBinding.Down, new(-0.15f, -2.18f), false);
+
+		SifCrest.AddBlueSlot(new(-2.25f, -1.59f), false);
+		SifCrest.AddBlueSlot(new(1.71f, -2.5f), false);
+		SifCrest.AddYellowSlot(new(-1.41f, 0.55f), false);
+		SifCrest.AddYellowSlot(new(2.2f, -0.12f), false);
 
 		SifCrest.ApplyAutoSlotNavigation();
 
