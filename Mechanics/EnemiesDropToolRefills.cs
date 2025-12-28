@@ -22,13 +22,15 @@ internal static class EnemiesDropToolRefills {
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]
 	[HarmonyPostfix]
 	private static void EnemyDeathDrop(HealthManager __instance) {
-		__instance.OnDeath += () => SpawnRefillItems(DROP_RATE_NORMAL, __instance);
+		if (__instance.GetComponent<PersistentBoolItem>())
+			__instance.OnDeath += () => SpawnRefillItems(DROP_RATE_NORMAL, __instance);
 	}
 
 	[HarmonyPatch(typeof(HealthManager.StealLagHit), nameof(HealthManager.StealLagHit.OnEnd))]
 	[HarmonyPostfix]
 	private static void SnitchPickDrop(HealthManager.StealLagHit __instance) {
-		SpawnRefillItems(DROP_RATE_SNITCH_PICK, __instance.healthManager);
+		if (__instance.healthManager.GetComponent<PersistentBoolItem>())
+			SpawnRefillItems(DROP_RATE_SNITCH_PICK, __instance.healthManager);
 	}
 
 	private static int GetAmountRefilled(int toolCapacity) {
@@ -86,10 +88,6 @@ internal static class EnemiesDropToolRefills {
 				AngleMax = 100f,
 			}, origin.transform, origin.effectOrigin);
 		}
-	}
-
-	[HarmonyPatch]
-	private static class Patches {
 	}
 
 }
