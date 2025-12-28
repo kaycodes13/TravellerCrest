@@ -13,11 +13,9 @@ namespace TravellerCrest;
 
 TODO:
 
-- up/wall/side attacks
-- down attack (likely FSM)
-- dash attack (likely FSM)
-- charged attack (likely FSM)
+- possibly a complex wall attack - designer still deciding
 - config menu (possibly with debug options to tweak heroconfig, etc)
+- bind anim should be flea brew drinking anim, disable silk effects if possible
 - playtesting, tweaking math
 
 TO RESEARCH:
@@ -80,6 +78,9 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		SifCrest.BindEvent = Bind.OnBindStart;
 
+		Moveset.Setup();
+
 		Logger.LogInfo($"Plugin {Name} ({Id}) has loaded!");
 	}
+
 }

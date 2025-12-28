@@ -1,0 +1,51 @@
+﻿[
+	{ "CopyEntire": { "Name": "Slash", "Crest": "Wanderer" } },
+	{ "CopyEntire": { "Name": "SlashEffect", "Crest": "Wanderer" } },
+
+	{ "CopyEntire": { "Name": "SlashAlt", "Crest": "Wanderer" } },
+	{ "CopyEntire": { "Name": "SlashEffectAlt", "Crest": "Wanderer" } },
+
+	{ "CopyEntire": { "Name": "UpSlash", "Crest": "Wanderer" } },
+
+	{ "CopyEntire": { "Name": "DownSlash", "Crest": "Wanderer" } },
+	{ "CopyEntire": { "Name": "DownSlashAlt", "Crest": "Wanderer" } },
+	{ "CopyEntire": { "Name": "DownSlashEffect", "Crest": "Wanderer" } },
+
+	{
+		"Name": "Slash_Charged Antic",
+		"Fps": 20,
+		"WrapMode": "Once",
+		"Triggers": [],
+		"Composite": [
+			{ "Frame": 0, "Repeat": 4, "Name": "ToolThrowAlt Q" }
+		]
+	},
+
+	{
+		"Name": "Slash_Charged",
+		"Fps": 18,
+		"WrapMode": "Once",
+		"Triggers": [ 1, 6 ],
+		"Composite": [
+			{ "Start": 1, "End": 5, "Name": "ToolThrowAlt Q" },
+			{ "Start": 1, "End": 7, "Name": "ToolThrow Q" },
+			{ "Frame": 7, "Name": "ToolThrow Q" }
+		]
+	},
+
+	{
+		"Name": "Slash_Charged Effect TEST",
+		"Fps": 15,
+		"WrapMode": "Once",
+		"Triggers": [ 0, 19 ],
+		"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
+	},
+
+	{
+		"Name": "Dash Attack Effect TEST",
+		"Fps": 15,
+		"WrapMode": "Once",
+		"Triggers": [ 0, 19 ],
+		"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
+	}
+]
