@@ -10,7 +10,9 @@ using Camera = GlobalSettings.Camera;
 namespace TravellerCrest.Mechanics;
 
 internal static class Moveset {
-	private static HeroConfigNeedleforge Cfg => SifCrest.Moveset.HeroConfig!;
+	private static HeroController Hc => HeroController.instance;
+	private static MovesetData Moves => SifCrest.Moveset;
+	private static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
 
 	private const float STUN_DAMAGE = 0.8f;
 	private const float DOWN_ATTACK_GAP = 0.01f;
@@ -18,10 +20,10 @@ internal static class Moveset {
 	internal static void Setup() {
 		SifCrest.Moveset.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
 
-		Cfg.heroAnimOverrideLib = AnimationManager.library;
-		Cfg.canBind = true;
-		Cfg.forceBareInventory = false;
-		Cfg.SetCanUseAbilities(true);
+		Config.heroAnimOverrideLib = AnimationManager.library;
+		Config.canBind = true;
+		Config.forceBareInventory = false;
+		Config.SetCanUseAbilities(true);
 
 		SimpleAttacks();
 		DownSlash();
@@ -30,13 +32,13 @@ internal static class Moveset {
 	}
 
 	private static void SimpleAttacks() {
-		Cfg.wallSlashSlowdown = false;
-		Cfg.SetAttackFields(
+		Config.wallSlashSlowdown = false;
+		Config.SetAttackFields(
 			time: 0.25f, recovery: 0.1f, cooldown: 0.3f,
 			quickSpeedMult: 1.5f, quickCooldown: 0.15f
 		);
 
-		SifCrest.Moveset.Slash = new Attack {
+		Moves.Slash = new Attack {
 			Name = "Neutral",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffect",
@@ -51,7 +53,7 @@ internal static class Moveset {
 			StunDamage = STUN_DAMAGE,
 		};
 
-		SifCrest.Moveset.AltSlash = new Attack {
+		Moves.AltSlash = new Attack {
 			Name = "NeutralAlt",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
@@ -66,7 +68,7 @@ internal static class Moveset {
 			StunDamage = STUN_DAMAGE,
 		};
 
-		SifCrest.Moveset.UpSlash = new Attack {
+		Moves.UpSlash = new Attack {
 			Name = "Up",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffect",
@@ -81,9 +83,9 @@ internal static class Moveset {
 			Scale = new(0.7f, -1.15f),
 			StunDamage = STUN_DAMAGE,
 		};
-		SifCrest.Moveset.OnInitialized += RotateUpslash;
+		Moves.OnInitialized += RotateUpslash;
 
-		SifCrest.Moveset.WallSlash = new Attack {
+		Moves.WallSlash = new Attack {
 			Name = "Wall",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
@@ -99,7 +101,7 @@ internal static class Moveset {
 		};
 
 		static void RotateUpslash() {
-			SifCrest.Moveset.UpSlash!.GameObject!.transform
+			Moves.UpSlash!.GameObject!.transform
 				.localRotation = Quaternion.Euler(0, 0, -90);
 		}
 	}
@@ -107,14 +109,14 @@ internal static class Moveset {
 	#region Down Slash
 
 	private static void DownSlash() {
-		Cfg.SetDownspikeFields(
+		Config.SetDownspikeFields(
 			anticTime: 0.09f,
 			time: 0.16f,
 			recoveryTime: 0.24f
 		);
-		Cfg.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
+		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		SifCrest.Moveset.DownSlash = new NonBouncingDownAttack {
+		Moves.DownSlash = new NonBouncingDownAttack {
 			Name = "Down",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "DownSlashEffect",
@@ -129,9 +131,10 @@ internal static class Moveset {
 			],
 			Scale = new(-0.8f, 1f),
 			StunDamage = STUN_DAMAGE / 2,
+			KnockbackMult = 0.5f,
 			DamageMult = 0.55f,
 		};
-		SifCrest.Moveset.AltDownSlash = new NonBouncingDownAttack {
+		Moves.AltDownSlash = new NonBouncingDownAttack {
 			Name = "DownAlt",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "DownSlashEffect",
@@ -180,18 +183,18 @@ internal static class Moveset {
 			fsm.GetBoolVariable("In Crest Attack").Value = true;
 			fsm.GetBoolVariable("Disabled Animation").Value = true;
 			bounceAtEnd.Value = false;
-			HeroController.instance.StopAnimationControl();
-			HeroController.instance.RelinquishControlNotVelocity();
-			HeroController.instance.QueueCancelDownAttack();
-			HeroController.instance.cState.isInCancelableFSMMove = true;
+			Hc.StopAnimationControl();
+			Hc.RelinquishControlNotVelocity();
+			Hc.QueueCancelDownAttack();
+			Hc.cState.isInCancelableFSMMove = true;
 			finished();
 		});
 		startState.AddTransition(FsmEvent.Finished.name, firstStepState.name);
 
 		// play first slash, reduce gravity
 		firstStepState.AddLambdaMethod(finished => {
-			HeroController.instance.cState.downAttacking = true;
-			SifCrest.Moveset.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			Hc.cState.downAttacking = true;
+			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			finished();
 		});
 		firstStepState.AddActions(
@@ -200,11 +203,6 @@ internal static class Moveset {
 				clipName = "DownSlash",
 				animationCompleteEvent = FsmEvent.Finished,
 			},
-			new ListenForDash {
-				wasPressed = dashEvent,
-				delayBeforeActive = 0f,
-				BlocksFinish = false
-			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
 				deceleration = 0.78f,
@@ -212,33 +210,25 @@ internal static class Moveset {
 			}
 		);
 		firstStepState.AddTransition(FsmEvent.Finished.name, delayState.name);
-		firstStepState.AddTransition(dashEvent.name, dashCancelState.name);
 		firstStepState.AddTransition(attackLandedEvent.name, firstHitState.name);
 		firstStepState.AddTransition(bounceTinkedEvent.name, firstHitState.name);
 		firstStepState.AddTransition(bounceCancelEvent.name, firstHitState.name);
 		firstStepState.AddTransition(leavingSceneEvent.name, missState.name);
+		AddDashCancel(firstStepState);
 
 		// if first step hits; stop downward movement and queue a bounce at the end
 		firstHitState.AddLambdaMethod(finished => {
-			HeroController.instance.AffectedByGravity(false);
-			HeroController.instance.rb2d.linearVelocity = Vector2.zero;
-			HeroController.instance.StartDownspikeInvulnerabilityLong();
+			Hc.rb2d.linearVelocity = new(Hc.rb2d.linearVelocity.x, 20f);
+			Hc.StartDownspikeInvulnerabilityLong();
 			bounceAtEnd.Value = true;
 			finished();
 		});
-		firstHitState.AddActions(
-			new Tk2dWatchAnimationEvents {
-				gameObject = ownerHornet,
-				animationCompleteEvent = FsmEvent.Finished,
-			},
-			new ListenForDash {
-				wasPressed = dashEvent,
-				delayBeforeActive = 0f,
-				BlocksFinish = false
-			}
-		);
-		firstHitState.AddTransition(dashEvent.name, dashCancelState.name);
+		firstHitState.AddAction(new Tk2dWatchAnimationEvents {
+			gameObject = ownerHornet,
+			animationCompleteEvent = FsmEvent.Finished,
+		});
 		firstHitState.AddTransition(FsmEvent.Finished.name, delayState.name);
+		AddDashCancel(firstHitState);
 
 		// wait a configurable amount of time between steps
 		delayState.AddActions(
@@ -246,20 +236,15 @@ internal static class Moveset {
 				floatVariable = delay,
 				floatValue = DOWN_ATTACK_GAP,
 			},
-			new Wait { time = delay, },
-			new ListenForDash {
-				wasPressed = dashEvent,
-				delayBeforeActive = 0f,
-				BlocksFinish = false
-			}
+			new Wait { time = delay, }
 		);
 		delayState.AddTransition(FsmEvent.Finished.name, secondStepState.name);
 		delayState.AddTransition(leavingSceneEvent.name, missState.name);
-		delayState.AddTransition(dashEvent.name, dashCancelState.name);
+		AddDashCancel(delayState);
 
 		// perform the second slash, reduce gravity again
 		secondStepState.AddLambdaMethod(finished => {
-			SifCrest.Moveset.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			finished();
 		});
 		secondStepState.AddActions(
@@ -268,10 +253,6 @@ internal static class Moveset {
 				clipName = "DownSlashAlt",
 				animationCompleteEvent = FsmEvent.Finished,
 			},
-			new ListenForDash {
-				wasPressed = dashEvent, delayBeforeActive = 0f,
-				BlocksFinish = false
-			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
 				deceleration = 0.78f,
@@ -279,11 +260,11 @@ internal static class Moveset {
 			}
 		);
 		secondStepState.AddTransition(FsmEvent.Finished.name, missState.name);
-		secondStepState.AddTransition(dashEvent.name, dashCancelState.name);
 		secondStepState.AddTransition(attackLandedEvent.name, bounceState.name);
 		secondStepState.AddTransition(bounceTinkedEvent.name, bounceState.name);
 		secondStepState.AddTransition(bounceCancelEvent.name, bounceState.name);
 		secondStepState.AddTransition(leavingSceneEvent.name, missState.name);
+		AddDashCancel(secondStepState);
 
 		// if queued bounce, redirect to bounce; if not, end normally
 		missState.AddAction(new BoolTest {
@@ -291,30 +272,38 @@ internal static class Moveset {
 			isTrue = bounceAnywayEvent
 		});
 		missState.AddLambdaMethod(finished => {
-			HeroController.instance.cState.downAttacking = false;
-			HeroController.instance.rb2d.linearVelocity = Vector2.zero;
-			HeroController.instance.FinishDownspike(true);
+			Hc.cState.downAttacking = false;
+			Hc.rb2d.linearVelocity = Vector2.zero;
+			Hc.FinishDownspike(true);
 			finished();
 		});
 		missState.AddTransition(bounceAnywayEvent.name, bounceState.name);
 
 		// perform a bounce because something was pogo'd upon
 		bounceState.AddLambdaMethod(finished => {
-			HeroController.instance.cState.downAttacking = false;
-			HeroController.instance.SetStartWithDownSpikeBounce();
+			Hc.cState.downAttacking = false;
+			Hc.SetStartWithDownSpikeBounce();
 			finished();
 		});
 
 		// if a dash input happens at any point, cancel the entire attack
 		dashCancelState.AddLambdaMethod(finished => {
-			SifCrest.Moveset.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
-			SifCrest.Moveset.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
-			HeroController.instance.AffectedByGravity(true);
-			HeroController.instance.SetStartWithDash();
+			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
+			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
+			Hc.SetStartWithDash();
 			finished();
 		});
 
 		endStates = [missState, bounceState, dashCancelState];
+
+		void AddDashCancel(FsmState state) {
+			state.AddAction(new ListenForDash {
+				wasPressed = dashEvent,
+				delayBeforeActive = 0f,
+				BlocksFinish = false
+			});
+			state.AddTransition(dashEvent.name, dashCancelState.name);
+		}
 	}
 
 	#endregion
@@ -322,13 +311,13 @@ internal static class Moveset {
 	#region Dash Slash
 
 	private static void DashSlash() {
-		Cfg.SetDashStabFields(
+		Config.SetDashStabFields(
 			time: 0.12f,
 			speed: -50,
 			bounceJumpSpeed: 18.6f,
 			forceShortBounce: false
 		);
-		Cfg.DashSlashFsmEdit = DashSlashFsmEdit;
+		Config.DashSlashFsmEdit = DashSlashFsmEdit;
 
 		const float endLagMult = 3f;
 
@@ -340,7 +329,7 @@ internal static class Moveset {
 			new Keyframe(time: 1, value: 1)
 		);
 
-		SifCrest.Moveset.DashSlash = new DashAttack {
+		Moves.DashSlash = new DashAttack {
 			Name = "Dash",
 			Steps = [
 				new TravellingDashAttackStep {
@@ -352,7 +341,7 @@ internal static class Moveset {
 				}
 			]
 		};
-		SifCrest.Moveset.DashSlash.SetAnimLibrary(AnimationManager.library);
+		Moves.DashSlash.SetAnimLibrary(AnimationManager.library);
 	}
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -365,8 +354,8 @@ internal static class Moveset {
 
 		// Play antic, slow down, relinquishing control stuff
 		startState.AddLambdaMethod(finished => {
-			HeroController.instance.attackAudioTable.SpawnAndPlayOneShot(HeroController.instance.transform.position);
-			HeroController.instance.SetAllowRecoilWhileRelinquished(true);
+			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
+			Hc.SetAllowRecoilWhileRelinquished(true);
 			finished();
 		});
 		startState.AddActions(
@@ -385,9 +374,9 @@ internal static class Moveset {
 
 		// Play anim attack and audio, start attack, disable gravity, leap back
 		slashState.AddLambdaMethod(finished => {
-			HeroController.instance.cState.onGround = false;
-			HeroController.instance.AffectedByGravity(false);
-			SifCrest.Moveset.DashSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			Hc.cState.onGround = false;
+			Hc.AffectedByGravity(false);
+			Moves.DashSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			finished();
 		});
 		slashState.AddActions(
@@ -412,10 +401,10 @@ internal static class Moveset {
 
 		// re-enable gravity, set attack cooldown, etc
 		endState.AddLambdaMethod(finished => {
-			HeroController.instance.SetStartFromReaperUpperslash();
-			HeroController.instance.CrestAttackRecovery();
-			HeroController.instance.AffectedByGravity(true);
-			HeroController.instance.SetAllowRecoilWhileRelinquished(false);
+			Hc.SetStartFromReaperUpperslash();
+			Hc.CrestAttackRecovery();
+			Hc.AffectedByGravity(true);
+			Hc.SetAllowRecoilWhileRelinquished(false);
 			finished();
 		});
 
@@ -427,7 +416,7 @@ internal static class Moveset {
 	#region Charged Slash
 
 	private static void ChargedSlash() {
-		Cfg.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
+		Config.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
 
 		const float endLagMult = 3f;
 
@@ -439,7 +428,7 @@ internal static class Moveset {
 			new Keyframe(time: 1, value: 1)
 		);
 
-		SifCrest.Moveset.ChargedSlash = new ChargedAttack {
+		Moves.ChargedSlash = new ChargedAttack {
 			Name = "Charged",
 			PlayOnActivation = false,
 			PlayStepsInSequence = false,
@@ -467,7 +456,7 @@ internal static class Moveset {
 				}
 			]
 		};
-		SifCrest.Moveset.ChargedSlash.SetAnimLibrary(AnimationManager.library);
+		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.library);
 	}
 
 	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -475,15 +464,15 @@ internal static class Moveset {
 			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner },
 			ownerAttack = new() {
 				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = SifCrest.Moveset.ChargedSlash!.GameObject!
+				GameObject = Moves.ChargedSlash!.GameObject!
 			},
 			ownerStepOne = new() {
 				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = SifCrest.Moveset.ChargedSlash!.Steps[0].GameObject!
+				GameObject = Moves.ChargedSlash!.Steps[0].GameObject!
 			},
 			ownerStepTwo = new() {
 				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = SifCrest.Moveset.ChargedSlash!.Steps[1].GameObject!
+				GameObject = Moves.ChargedSlash!.Steps[1].GameObject!
 			};
 
 		FsmState
