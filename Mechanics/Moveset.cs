@@ -1,5 +1,4 @@
-﻿using GlobalEnums;
-using HutongGames.PlayMaker;
+﻿using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
@@ -358,74 +357,50 @@ internal static class Moveset {
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault
-			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner },
-			ownerAttack = new() {
-				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = SifCrest.Moveset.DashSlash!.Steps[0].GameObject!
-			};
+			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner };
 
 		FsmState
 			slashState = fsm.AddState($"{SifId} Slash"),
 			endState = fsm.AddState($"{SifId} End");
 
 		// Play antic, slow down, relinquishing control stuff
+		startState.AddLambdaMethod(finished => {
+			HeroController.instance.attackAudioTable.SpawnAndPlayOneShot(HeroController.instance.transform.position);
+			HeroController.instance.SetAllowRecoilWhileRelinquished(true);
+			finished();
+		});
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
 				clipName = "Dash Attack Antic",
 				animationCompleteEvent = FsmEvent.Finished,
 			},
-			new PlayRandomAudioClipTableV2 {
-				Table = HeroController.instance.attackAudioTable,
-				SpawnPoint = ownerHornet,
-				SpawnPosition = Vector3.zero, AudioPlayerPrefab = new(), ForcePlay = false
-			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
 				deceleration = 0.65f,
 				brakeOnExit = false,
-			},
-			new CallMethodProper {
-				gameObject = ownerHornet,
-				behaviour = nameof(HeroController),
-				methodName = nameof(HeroController.SetAllowRecoilWhileRelinquished),
-				parameters = [new() { boolValue = true, type = VariableType.Bool }],
-				storeResult = new()
 			}
 		);
 		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
 
 		// Play anim attack and audio, start attack, disable gravity, leap back
+		slashState.AddLambdaMethod(finished => {
+			HeroController.instance.cState.onGround = false;
+			HeroController.instance.AffectedByGravity(false);
+			SifCrest.Moveset.DashSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			finished();
+		});
 		slashState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
 				clipName = "Dash Attack",
 				animationCompleteEvent = FsmEvent.Finished,
 			},
-			new SendMessageV2 {
-				gameObject = ownerAttack,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
-			},
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() {
-					FunctionName = nameof(HeroController.AffectedByGravity),
-					BoolParameter = false, ParameterType = "bool"
-				}
-			},
 			new SetVelocityByScale {
 				gameObject = ownerHornet,
 				speed = 25f,
 				ySpeed = 14.5f,
 				everyFrame = false,
-			},
-			new SetHeroCState {
-				VariableName = nameof(HeroController.cState.onGround),
-				Value = false,
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
@@ -436,36 +411,13 @@ internal static class Moveset {
 		slashState.AddTransition(FsmEvent.Finished.name, endState.name);
 
 		// re-enable gravity, set attack cooldown, etc
-		endState.AddActions(
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(HeroController.SetStartFromReaperUpperslash) }
-			},
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(HeroController.CrestAttackRecovery) }
-			},
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() {
-					FunctionName = nameof(HeroController.AffectedByGravity),
-					BoolParameter = true, ParameterType = "bool"
-				}
-			},
-			new CallMethodProper {
-				gameObject = ownerHornet,
-				behaviour = nameof(HeroController),
-				methodName = nameof(HeroController.SetAllowRecoilWhileRelinquished),
-				parameters = [new() { boolValue = false, type = VariableType.Bool }],
-				storeResult = new()
-			}
-		);
+		endState.AddLambdaMethod(finished => {
+			HeroController.instance.SetStartFromReaperUpperslash();
+			HeroController.instance.CrestAttackRecovery();
+			HeroController.instance.AffectedByGravity(true);
+			HeroController.instance.SetAllowRecoilWhileRelinquished(false);
+			finished();
+		});
 
 		endStates = [endState];
 	}
