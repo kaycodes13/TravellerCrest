@@ -4,7 +4,6 @@ using HarmonyLib;
 using Needleforge;
 using Needleforge.Data;
 using TeamCherry.Localization;
-using TravellerCrest.Data;
 using TravellerCrest.Mechanics;
 using UnityEngine;
 
@@ -14,11 +13,9 @@ namespace TravellerCrest;
 
 TODO:
 
-- down attack (likely FSM)
-- dash attack (likely FSM)
-- charged attack (likely FSM)
 - possibly a complex wall attack - designer still deciding
 - config menu (possibly with debug options to tweak heroconfig, etc)
+- bind anim should be flea brew drinking anim, disable silk effects if possible
 - playtesting, tweaking math
 
 TO RESEARCH:
