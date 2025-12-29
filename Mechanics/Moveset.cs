@@ -487,7 +487,7 @@ internal static class Moveset {
 					Travel = new() {
 						Distance = distance, Duration = duration, Curve = easeOut,
 					},
-				}
+				},
 			]
 		};
 		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.library);
@@ -496,8 +496,10 @@ internal static class Moveset {
 
 		static void SetChargedAttackSounds() {
 			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
+			var sound = shaman.ChargeSlash.GetComponent<PlayRandomAudioEvent>().audioEvent
+				.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
 			foreach (var step in Moves.ChargedSlash!.Steps)
-				step.Sound = GetSound(shaman.ChargeSlash);
+				step.Sound = sound;
 		}
 	}
 
