@@ -31,6 +31,7 @@ TO RESEARCH:
 [BepInDependency("org.silksong-modding.fsmutil")]
 [BepInDependency("org.silksong-modding.unityhelper")]
 [BepInDependency("io.github.needleforge")]
+[BepInIncompatibility("com.cometcake575.architect")]
 public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 	private Harmony Harmony { get; } = new(Id);
