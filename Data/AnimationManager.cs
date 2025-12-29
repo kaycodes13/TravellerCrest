@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using TravellerCrest.Utils;
+using TravellerCrest.Components;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 using WrapMode = tk2dSpriteAnimationClip.WrapMode;

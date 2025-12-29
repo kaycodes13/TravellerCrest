@@ -1,13 +1,14 @@
 ﻿using Needleforge.Attacks;
+using TravellerCrest.Components;
 using UnityEngine;
 
-namespace TravellerCrest.Data;
+namespace TravellerCrest.Attacks;
 
-internal class TravellingDashAttackStep : DashAttack.Step {
+internal class DashAttackStepTravelling : DashAttack.Step {
 
 	#region API
 
-	public AttackTravel? Travel { get; set; }
+	public NailSlashTravelProxy? Travel { get; set; }
 
 	/// <inheritdoc cref="AttackBase.AnimName"/>
 	/// <remarks>

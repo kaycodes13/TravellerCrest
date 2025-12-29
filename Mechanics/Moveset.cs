@@ -3,6 +3,8 @@ using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
 using Silksong.FsmUtil;
+using System.Linq;
+using TravellerCrest.Attacks;
 using TravellerCrest.Data;
 using UnityEngine;
 using Camera = GlobalSettings.Camera;
@@ -10,15 +12,12 @@ using Camera = GlobalSettings.Camera;
 namespace TravellerCrest.Mechanics;
 
 internal static class Moveset {
-	private static HeroController Hc => HeroController.instance;
-	private static MovesetData Moves => SifCrest.Moveset;
-	private static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
 
 	private const float STUN_DAMAGE = 0.8f;
 	private const float DOWN_ATTACK_GAP = 0.01f;
 
 	internal static void Setup() {
-		SifCrest.Moveset.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
+		Moves.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
 
 		Config.heroAnimOverrideLib = AnimationManager.library;
 		Config.canBind = true;
@@ -53,7 +52,7 @@ internal static class Moveset {
 			StunDamage = STUN_DAMAGE,
 		};
 
-		Moves.AltSlash = new Attack {
+		Moves.AltSlash = new AttackPositionable {
 			Name = "NeutralAlt",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
@@ -64,11 +63,14 @@ internal static class Moveset {
 				new(0.07f, -1.16f),
 				new(-0.07f, 0.21f),
 			],
-			Scale = new(0.8f, 1.3f),
 			StunDamage = STUN_DAMAGE,
+			Scale = new(0.8f, 1.3f),
+			Transform = new() {
+				Position = new(-0.18f, 0.38f)
+			},
 		};
 
-		Moves.UpSlash = new Attack {
+		Moves.UpSlash = new AttackPositionable {
 			Name = "Up",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffect",
@@ -80,12 +82,15 @@ internal static class Moveset {
 				new(-1.86f, 0.37f),
 				new(0.95f, 0.35f),
 			],
-			Scale = new(0.7f, -1.15f),
 			StunDamage = STUN_DAMAGE,
+			Scale = new(0.7f, -1.15f),
+			Transform = new() {
+				Position = new(-0.03f, 0.22f),
+				Rotation = Quaternion.Euler(0, 0, -90)
+			},
 		};
-		Moves.OnInitialized += RotateUpslash;
 
-		Moves.WallSlash = new Attack {
+		Moves.WallSlash = new AttackPositionable {
 			Name = "Wall",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "SlashEffectAlt",
@@ -96,13 +101,21 @@ internal static class Moveset {
 				new(-0.03f, -1.02f),
 				new(-0.30f, 0.13f),
 			],
-			Scale = new(0.9f, 1.3f),
 			StunDamage = STUN_DAMAGE,
+			Scale = new(0.9f, 1.3f),
+			Transform = new() {
+				Position = new(0.24f, 0.43f)
+			},
 		};
 
-		static void RotateUpslash() {
-			Moves.UpSlash!.GameObject!.transform
-				.localRotation = Quaternion.Euler(0, 0, -90);
+		Moves.OnInitialized += SetSimpleAttackSounds;
+
+		static void SetSimpleAttackSounds() {
+			var wanderer = Hc.configs.First(x => x.Config.name == "Wanderer");
+			Moves.Slash!.Sound = GetSound(wanderer.NormalSlashObject);
+			Moves.AltSlash!.Sound = GetSound(wanderer.AlternateSlashObject);
+			Moves.UpSlash!.Sound = GetSound(wanderer.UpSlashObject);
+			Moves.WallSlash!.Sound = GetSound(wanderer.WallSlashObject);
 		}
 	}
 
@@ -116,7 +129,7 @@ internal static class Moveset {
 		);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		Moves.DownSlash = new NonBouncingDownAttack {
+		Moves.DownSlash = new DownAttackNonBouncing {
 			Name = "Down",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "DownSlashEffect",
@@ -130,11 +143,14 @@ internal static class Moveset {
 				new(-1.84f, -0.25f),
 			],
 			Scale = new(-0.8f, 1f),
-			StunDamage = STUN_DAMAGE / 2,
+			Transform = new() {
+				Position = new(0.05f, -0.15f)
+			},
+			StunDamage = STUN_DAMAGE / 2f,
 			KnockbackMult = 0.5f,
 			DamageMult = 0.55f,
 		};
-		Moves.AltDownSlash = new NonBouncingDownAttack {
+		Moves.AltDownSlash = new DownAttackNonBouncing {
 			Name = "DownAlt",
 			AnimLibrary = AnimationManager.library,
 			AnimName = "DownSlashEffect",
@@ -148,9 +164,20 @@ internal static class Moveset {
 				new(-1.84f, -0.25f),
 			],
 			Scale = new(0.8f, 1f),
-			StunDamage = STUN_DAMAGE / 2,
+			Transform = new() {
+				Position = new(-0.03f, -0.15f)
+			},
+			StunDamage = STUN_DAMAGE / 2f,
 			DamageMult = 0.55f,
 		};
+
+		Moves.OnInitialized += SetDownAttackSounds;
+
+		static void SetDownAttackSounds() {
+			var wanderer = Hc.configs.First(x => x.Config.name == "Wanderer");
+			Moves.DownSlash!.Sound = GetSound(wanderer.DownSlashObject);
+			Moves.AltDownSlash!.Sound = GetSound(wanderer.AltDownSlashObject);
+		}
 	}
 
 	private static void DownslashEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -332,7 +359,7 @@ internal static class Moveset {
 		Moves.DashSlash = new DashAttack {
 			Name = "Dash",
 			Steps = [
-				new TravellingDashAttackStep {
+				new DashAttackStepTravelling {
 					AnimName = "Dash Attack Effect TEST",
 					Hitbox = [new(0, -1), new(0, 1), new(-2, 1), new(-2, -1)],
 					Travel = new() {
@@ -342,6 +369,13 @@ internal static class Moveset {
 			]
 		};
 		Moves.DashSlash.SetAnimLibrary(AnimationManager.library);
+
+		Moves.OnInitialized += SetDashAttackSound;
+
+		static void SetDashAttackSound() {
+			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
+			Moves.DashSlash!.Steps[0].Sound = GetSound(shaman.NormalSlashObject);
+		}
 	}
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -435,7 +469,7 @@ internal static class Moveset {
 			CameraShakeProfiles = [Camera.TinyShake],
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
-				new TravellingChargeAttackStep {
+				new ChargeAttackStepTravelling {
 					AnimName = "Slash_Charged Effect TEST",
 					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
 					CameraShakeIndex = 0,
@@ -445,7 +479,7 @@ internal static class Moveset {
 					},
 					Scale = new(0.5f, 2),
 				},
-				new TravellingChargeAttackStep {
+				new ChargeAttackStepTravelling {
 					AnimName = "Slash_Charged Effect TEST",
 					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
 					CameraShakeIndex = 0,
@@ -457,6 +491,14 @@ internal static class Moveset {
 			]
 		};
 		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.library);
+
+		Moves.OnInitialized += SetChargedAttackSounds;
+
+		static void SetChargedAttackSounds() {
+			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
+			foreach (var step in Moves.ChargedSlash!.Steps)
+				step.Sound = GetSound(shaman.ChargeSlash);
+		}
 	}
 
 	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -566,4 +608,14 @@ internal static class Moveset {
 	}
 
 	#endregion
+
+	#region Local Utilities
+
+	static HeroController Hc => HeroController.instance;
+	static MovesetData Moves => SifCrest.Moveset;
+	static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
+	static AudioClip GetSound(GameObject go) => go.GetComponent<AudioSource>().clip;
+
+	#endregion
+
 }
