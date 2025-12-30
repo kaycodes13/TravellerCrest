@@ -19,7 +19,7 @@ internal static class Moveset {
 	internal static void Setup() {
 		Moves.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
 
-		Config.heroAnimOverrideLib = AnimationManager.library;
+		Config.heroAnimOverrideLib = AnimationManager.MainLib;
 		Config.canBind = true;
 		Config.forceBareInventory = false;
 		Config.SetCanUseAbilities(true);
@@ -39,7 +39,7 @@ internal static class Moveset {
 
 		Moves.Slash = new Attack {
 			Name = "Neutral",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffect",
 			Hitbox = [
 				new(-3.34f, 0.17f),
@@ -54,7 +54,7 @@ internal static class Moveset {
 
 		Moves.AltSlash = new AttackPositionable {
 			Name = "NeutralAlt",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffectAlt",
 			Hitbox = [
 				new(-3.16f, -0.1f),
@@ -72,7 +72,7 @@ internal static class Moveset {
 
 		Moves.UpSlash = new AttackPositionable {
 			Name = "Up",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffect",
 			Hitbox = [
 				new(0.98f, -0.58f),
@@ -92,7 +92,7 @@ internal static class Moveset {
 
 		Moves.WallSlash = new AttackPositionable {
 			Name = "Wall",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffectAlt",
 			Hitbox = [
 				new(-3.09f, -0.1f),
@@ -131,7 +131,7 @@ internal static class Moveset {
 
 		Moves.DownSlash = new DownAttackNonBouncing {
 			Name = "Down",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "DownSlashEffect",
 			Hitbox = [
 				new(2.19f, -0.24f),
@@ -152,7 +152,7 @@ internal static class Moveset {
 		};
 		Moves.AltDownSlash = new DownAttackNonBouncing {
 			Name = "DownAlt",
-			AnimLibrary = AnimationManager.library,
+			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "DownSlashEffect",
 			Hitbox = [
 				new(2.19f, -0.24f),
@@ -368,7 +368,7 @@ internal static class Moveset {
 				}
 			]
 		};
-		Moves.DashSlash.SetAnimLibrary(AnimationManager.library);
+		Moves.DashSlash.SetAnimLibrary(AnimationManager.MainLib);
 
 		Moves.OnInitialized += SetDashAttackSound;
 
@@ -490,7 +490,7 @@ internal static class Moveset {
 				},
 			]
 		};
-		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.library);
+		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.MainLib);
 
 		Moves.OnInitialized += SetChargedAttackSounds;
 

@@ -8,7 +8,7 @@ using TeamCherry.Localization;
 using TravellerCrest.Data;
 using TravellerCrest.Mechanics;
 using UnityEngine;
-using static TravellerCrest.Utils.AssetUtils;
+using static TravellerCrest.Utils.AssetUtil;
 
 namespace TravellerCrest;
 
@@ -54,7 +54,6 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 	private void Awake() {
 		Log = Logger;
-		Logger.LogInfo($"Plugin {Name} ({Id}) is loading...");
 
 		Harmony.PatchAll();
 
@@ -89,12 +88,22 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		#region HUD
 
-		SifCrest.HudFrame.ProfileIcon = LoadSprite($"{path}.hud_profile.png", ppu: 100);
-		SifCrest.HudFrame.SteelProfileIcon = LoadSprite($"{path}.hud_ss_profile.png", ppu: 100);
+		tk2dSpriteAnimation
+			mainLib = AnimationManager.MainLib,
+			steelLib = AnimationManager.libraries["steel"];
+		HudFrameData
+			hud = SifCrest.HudFrame;
 
-		SifCrest.HudFrame.Appear = AnimationManager.library.GetClipByName("HUD Appear");
-		SifCrest.HudFrame.Idle = AnimationManager.library.GetClipByName("HUD Idle");
-		SifCrest.HudFrame.Disappear = AnimationManager.library.GetClipByName("HUD Disappear");
+		hud.ProfileIcon = LoadSprite($"{path}.hud_profile.png", ppu: 100);
+		hud.SteelProfileIcon = LoadSprite($"{path}.hud_ss_profile.png", ppu: 100);
+
+		hud.Appear = mainLib.GetClipByName("Traveller HUD Appear");
+		hud.Idle = mainLib.GetClipByName("Traveller HUD Idle");
+		hud.Disappear = mainLib.GetClipByName("Traveller HUD Disappear");
+
+		hud.SteelAppear = steelLib.GetClipByName("Traveller HUD Appear");
+		hud.SteelIdle = steelLib.GetClipByName("Traveller HUD Idle");
+		hud.SteelDisappear = steelLib.GetClipByName("Traveller HUD Disappear");
 
 		#endregion
 
