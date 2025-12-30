@@ -1,10 +1,12 @@
 ﻿using Newtonsoft.Json;
+using Silksong.UnityHelper.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using TravellerCrest.Components;
+using TravellerCrest.Utils;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 using WrapMode = tk2dSpriteAnimationClip.WrapMode;
@@ -12,15 +14,17 @@ using WrapMode = tk2dSpriteAnimationClip.WrapMode;
 namespace TravellerCrest.Data;
 
 internal static class AnimationManager {
-
+	internal static readonly tk2dSpriteCollectionData spriteCollection;
 	internal static readonly tk2dSpriteAnimation library;
 
-	private const string animsPath = $"{nameof(TravellerCrest)}.Assets.Animations";
+	private const string path = $"{nameof(TravellerCrest)}.Assets.Animations";
 
 	private static readonly HeroAnimDef[] heroDefs;
 
 	static AnimationManager() {
-		GameObject libobj = new($"{SifId} Animations");
+		Assembly asm = Assembly.GetExecutingAssembly();
+
+		GameObject libobj = new($"{SifId} Anim");
 		UObject.DontDestroyOnLoad(libobj);
 		libobj.hideFlags = HideFlags.HideAndDontSave;
 
@@ -31,9 +35,50 @@ internal static class AnimationManager {
 		libobj.AddComponent<RedoTriggers>();
 		#endif
 
-		Assembly asm = Assembly.GetExecutingAssembly();
+		#region Custom Animations
 
-		using (StreamReader reader = new(asm.GetManifestResourceStream($"{animsPath}.HeroAnimDefs.json"))) {
+		using (StreamReader reader = new(asm.GetManifestResourceStream($"{path}.CustomSpriteDefs.json"))) {
+			CustomSpriteDef[] frameDatas = JsonConvert.DeserializeObject<CustomSpriteDef[]>(reader.ReadToEnd())!;
+
+			IEnumerable<Texture2D> frames = frameDatas.Select(x =>
+				SpriteUtil.LoadEmbeddedTexture(asm, $"{path}.{x.Path}").PremultiplyAlpha()
+			);
+
+			spriteCollection = Tk2dUtil.CreateTk2dSpriteCollection(
+				frames,
+				spriteNames: frameDatas.Select(x => x.Path),
+				spriteCenters: frameDatas.Select(x => x.Pivot)
+			);
+		}
+		UObject.DontDestroyOnLoad(spriteCollection);
+		spriteCollection.hideFlags = HideFlags.HideAndDontSave;
+		spriteCollection.gameObject.name = $"{SifId} Cln";
+
+		CustomAnimDef[] animDatas;
+		using (StreamReader reader = new(asm.GetManifestResourceStream($"{path}.CustomAnimDefs.json"))) {
+			animDatas = JsonConvert.DeserializeObject<CustomAnimDef[]>(reader.ReadToEnd())!;
+		}
+
+		List<tk2dSpriteAnimationClip> clips = [];
+
+		foreach (CustomAnimDef animData in animDatas) {
+			tk2dSpriteAnimationClip anim = new() {
+				name = animData.Name,
+				fps = animData.Fps,
+				wrapMode = animData.WrapMode,
+				frames = spriteCollection.CreateFrames(animData.Frames),
+			};
+			foreach (int index in animData.Triggers) {
+				anim.frames[index].triggerEvent = true;
+			}
+			clips.Add(anim);
+		}
+
+		library.clips = [.. clips];
+
+		#endregion
+
+		using (StreamReader reader = new(asm.GetManifestResourceStream($"{path}.HeroAnimDefs.json"))) {
 			heroDefs = JsonConvert.DeserializeObject<HeroAnimDef[]>(reader.ReadToEnd())!;
 		}
 	}
@@ -158,7 +203,7 @@ internal static class AnimationManager {
 	/// Deserialization struct for an entry in a <see cref="tk2dSpriteCollectionData"/>.
 	/// </summary>
 	/// <param name="Path">
-	///		Embedded resource path (relative to <see cref="animsPath"/> of the sprite.
+	///		Embedded resource path (relative to <see cref="path"/> of the sprite.
 	///	</param>
 	/// <param name="Pivot">Pivot/center point of the sprite, in pixels.</param>
 	[Serializable]

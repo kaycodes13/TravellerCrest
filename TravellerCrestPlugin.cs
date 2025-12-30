@@ -5,9 +5,10 @@ using Needleforge;
 using Needleforge.Data;
 using System.Reflection;
 using TeamCherry.Localization;
+using TravellerCrest.Data;
 using TravellerCrest.Mechanics;
 using UnityEngine;
-using static Silksong.UnityHelper.Util.SpriteUtil;
+using static TravellerCrest.Utils.AssetUtils;
 
 namespace TravellerCrest;
 
@@ -57,6 +58,9 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		Harmony.PatchAll();
 
+		Assembly asm = Assembly.GetExecutingAssembly();
+		const string path = $"{nameof(TravellerCrest)}.Assets.Sprites";
+
 		#region Custom Tool Colour
 
 		Purple.AddValidTypes(ToolItemType.Red, ToolItemType.Blue);
@@ -66,12 +70,9 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		#region Tool Slots
 
-		Assembly asm = Assembly.GetExecutingAssembly();
-		const string path = $"{nameof(TravellerCrest)}.Assets.Sprites";
-
-		SifCrest.RealSprite = LoadEmbeddedSprite(asm, $"{path}.crest_lines.png", pixelsPerUnit: 100);
-		SifCrest.Silhouette = LoadEmbeddedSprite(asm, $"{path}.crest_silhouette.png", pixelsPerUnit: 200);
-		SifCrest.CrestGlow = LoadEmbeddedSprite(asm, $"{path}.crest_glow.png", pixelsPerUnit: 284);
+		SifCrest.RealSprite = LoadSprite($"{path}.crest_lines.png", ppu: 100);
+		SifCrest.Silhouette = LoadSprite($"{path}.crest_silhouette.png", ppu: 200);
+		SifCrest.CrestGlow = LoadSprite($"{path}.crest_glow.png", ppu: 284);
 
 		SifCrest.AddRedSlot(AttackToolBinding.Up, new(-0.13f, 2.59f), false);
 		SifCrest.AddSkillSlot(AttackToolBinding.Neutral, new(0.15f, -0.32f), false);
@@ -83,6 +84,17 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 		SifCrest.AddYellowSlot(new(2.2f, -0.12f), false);
 
 		SifCrest.ApplyAutoSlotNavigation();
+
+		#endregion
+
+		#region HUD
+
+		SifCrest.HudFrame.ProfileIcon = LoadSprite($"{path}.hud_profile.png", ppu: 100);
+		SifCrest.HudFrame.SteelProfileIcon = LoadSprite($"{path}.hud_ss_profile.png", ppu: 100);
+
+		SifCrest.HudFrame.Appear = AnimationManager.library.GetClipByName("HUD Appear");
+		SifCrest.HudFrame.Idle = AnimationManager.library.GetClipByName("HUD Idle");
+		SifCrest.HudFrame.Disappear = AnimationManager.library.GetClipByName("HUD Disappear");
 
 		#endregion
 
