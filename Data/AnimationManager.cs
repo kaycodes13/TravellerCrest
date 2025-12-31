@@ -85,6 +85,7 @@ internal static class AnimationManager {
 
 				libraries[Name] = library = libobj.AddComponent<tk2dSpriteAnimation>();
 				library.clips = [];
+				library.ValidateLookup();
 
 				#if DEBUG
 				libobj.AddComponent<RedoTriggers>();
@@ -134,6 +135,11 @@ internal static class AnimationManager {
 		(string Name, int Fps, WrapMode WrapMode, int[] Triggers,
 		HeroFrameDef? Copy, HeroFrameDef[] Composite)
 		: IAnimDef {
+
+		readonly string IAnimDef.Name {
+			get => Name ?? Copy?.Name ?? "";
+			set => _ = value;
+		}
 
 		readonly tk2dSpriteAnimationClip IAnimDef.MakeClip() {
 			List<tk2dSpriteAnimationFrame> frames = [];
