@@ -1,13 +1,11 @@
 ﻿using HarmonyLib;
-using Newtonsoft.Json;
 using Silksong.UnityHelper.Util;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using TravellerCrest.Components;
+using TravellerCrest.Utils;
 using UnityEngine;
-using static TravellerCrest.Utils.AssetUtil;
 using UObject = UnityEngine.Object;
 using WrapMode = tk2dSpriteAnimationClip.WrapMode;
 
@@ -28,34 +26,30 @@ internal static class AnimationManager {
 	private static readonly AnimLibrary<HeroAnimDef>[] heroLibs;
 
 	static AnimationManager() {
-		using (StreamReader reader = new(Asm.GetManifestResourceStream($"{path}.CustomSpriteDefs.json"))) {
-			CustomSpriteDef[]
-				frameDatas = JsonConvert.DeserializeObject<CustomSpriteDef[]>(reader.ReadToEnd())!;
+		var frameDatas = AssetUtil.ReadJson<CustomSpriteDef[]>($"{path}.CustomSpriteDefs.json");
 
-			IEnumerable<Texture2D>
-				frames = frameDatas.Select(x => LoadTexture($"{path}.{x.Path}"));
+		IEnumerable<Texture2D>
+			frames = frameDatas.Select(x => AssetUtil.LoadTexture($"{path}.{x.Path}"));
 
-			spriteCollection = Tk2dUtil.CreateTk2dSpriteCollection(
-				frames,
-				spriteNames: frameDatas.Select(x => x.Path),
-				spriteCenters: frameDatas.Select(x => x.Pivot)
-			);
-		}
+		spriteCollection = Tk2dUtil.CreateTk2dSpriteCollection(
+			frames,
+			spriteNames: frameDatas.Select(x => x.Path),
+			spriteCenters: frameDatas.Select(x => x.Pivot)
+		);
 		UObject.DontDestroyOnLoad(spriteCollection);
 		spriteCollection.hideFlags = HideFlags.HideAndDontSave;
 		spriteCollection.gameObject.name = $"{SifId} Cln";
 
-		using (StreamReader reader = new(Asm.GetManifestResourceStream($"{path}.CustomAnimDefs.json"))) {
-			AnimLibrary<CustomAnimDef>[]
-				animLibs = JsonConvert.DeserializeObject<AnimLibrary<CustomAnimDef>[]>(reader.ReadToEnd())!;
+		//var mat = spriteCollection.material;
+		//mat.shader = GlobalSettings.Effects.DefaultUnlitMaterial.shader;
+		//mat.mainTexture = newtex;
 
-			foreach(var libData in animLibs)
-				libData.Initialize();
-		}
+		var animLibs = AssetUtil.ReadJson<AnimLibrary<CustomAnimDef>[]>($"{path}.CustomAnimDefs.json");
 
-		using (StreamReader reader = new(Asm.GetManifestResourceStream($"{path}.HeroAnimDefs.json"))) {
-			heroLibs = JsonConvert.DeserializeObject<AnimLibrary<HeroAnimDef>[]>(reader.ReadToEnd())!;
-		}
+		foreach (var libData in animLibs)
+			libData.Initialize();
+
+		heroLibs = AssetUtil.ReadJson<AnimLibrary<HeroAnimDef>[]>($"{path}.HeroAnimDefs.json");
 	}
 
 	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Awake))]

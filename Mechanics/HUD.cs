@@ -1,21 +1,39 @@
-﻿using GlobalEnums;
+﻿using Coffee.UISoftMask;
+using GlobalEnums;
 using Needleforge.Data;
 using Silksong.UnityHelper.Extensions;
+using Silksong.UnityHelper.Util;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using TravellerCrest.Components;
 using TravellerCrest.Data;
+using TravellerCrest.Utils;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static TravellerCrest.Utils.AssetUtil;
-using static UnityEngine.ParticleSystem;
+using UnityEngine.Timeline;
+using UnityEngine.UI;
 
 namespace TravellerCrest.Mechanics;
 
 internal static class HUD {
 
-	static HudFrameData Hud => SifCrest.HudFrame;
+	private static HudFrameData Hud => SifCrest.HudFrame;
 
-		const string path = $"{nameof(TravellerCrest)}.Assets.Sprites";
+	private const string path = $"{nameof(TravellerCrest)}.Assets.Sprites.HUD";
+
+	private static readonly Dictionary<int, MeterSprites> MetersByMaxHP = [];
+
+	private record struct MeterSprites(Sprite fill, Sprite line);
+
+
+	private static MeterCenterFill? meter;
+	private static SimpleSpriteFade? glowFader;
+
+	private static GameObject?
+		glowGo,
+		burstGo;
 
 	internal static void Setup() {
 		tk2dSpriteAnimation
@@ -30,121 +48,82 @@ internal static class HUD {
 		Hud.SteelIdle = steelLib.GetClipByName("Traveller HUD Idle");
 		Hud.SteelDisappear = steelLib.GetClipByName("Traveller HUD Disappear");
 
+		if (!Hud.ProfileIcon){
+			Hud.ProfileIcon = AssetUtil.LoadSprite($"{path}.hud_profile.png", ppu: 100);
+			Hud.SteelProfileIcon = AssetUtil.LoadSprite($"{path}.hud_ss_profile.png", ppu: 100);
+		}
 
-		Hud.ProfileIcon = LoadSprite($"{path}.hud_profile.png", ppu: 100);
-		Hud.SteelProfileIcon = LoadSprite($"{path}.hud_ss_profile.png", ppu: 100);
+		if (MetersByMaxHP.Count == 0) {
+			for (int i = 5; i <= 10; i++) {
+				MetersByMaxHP.Add(i,
+					new(
+						AssetUtil.LoadSprite($"{path}.{i}hp_fill.png"),
+						AssetUtil.LoadSprite($"{path}.{i}hp_line.png")
+					)
+				);
+			}
+		}
 
 		Hud.OnRootCreated += BuildRoot;
 		Hud.Coroutine = MeterCoro;
 	}
 
 	private static void BuildRoot() {
+		HeroController.instance.InvokeNextFrame(FixPositionAndLayering);
 		GameObject root = Hud.Root!;
-		AddSortingGroup(root, 0);
-		root.transform.localPosition = new(-1.54f, 0.15f, 0);
 
-		var (meterObj, meterRend)
-			= NewHudElement<SpriteRenderer>("meter", order: 0);
-		meterRend.sprite = LoadSprite($"{path}.hud_meter.png");
-		meterRend.maskInteraction = SpriteMaskInteraction.VisibleInsideMask;
+		var activator = root.GetOrAddComponent<HudRootAnimator>();
+		activator.hudroot = root;
+		activator.crest = SifCrest;
 
-		var (maskObj, maskRend)
-			= NewHudElement<SpriteMask>("mask", order: 1);
-		maskRend.sprite = LoadSprite($"{path}.hud_meter_mask.png");
-		maskObj.transform.localScale = Vector3.zero;
+		int
+			maxHp = PlayerData.instance.maxHealth,
+			minKey = MetersByMaxHP.Keys.Min(),
+			maxKey = MetersByMaxHP.Keys.Max(),
+			key = Mathf.Clamp(maxHp, minKey, maxKey);
 
-		var (burstGo, _)
-			= NewHudElement<MeshRenderer>("burst", order: 10);
+		MeterSprites meterSprites = MetersByMaxHP[key];
+
+		meter = root.AddComponent<MeterCenterFill>();
+		meter.Fill = meterSprites.fill;
+		meter.Line = meterSprites.line;
+		meter.Backboard = AssetUtil.LoadSprite($"{path}.backboard.png");
+		meter.FillMask = AssetUtil.LoadSprite($"{path}.fill_mask.png");
+		meter.Min = 0;
+		meter.Max = maxKey - 1;
+		meter.Value = 0;
+
+		burstGo = new GameObject("Burst Anim") { layer = (int)meter.Layer };
 		burstGo.SetActive(false);
+		burstGo.transform.parent = root.transform;
+		burstGo.transform.localPosition = Vector3.zero;
+		burstGo.transform.localScale = 0.6f * Vector3.one;
+		burstGo.AddComponent<tk2dSprite>();
 		var burstDeac = burstGo.AddComponent<DeactivateAfter2dtkAnimation>();
 		burstDeac.animators = [burstGo.AddComponent<tk2dSpriteAnimator>()];
-		burstGo.AddComponent<tk2dSprite>();
-		burstGo.transform.localScale = 0.6f * Vector3.one;
+		var burstOrder = burstGo.AddComponent<MeshSortingOrder>();
+		burstOrder.layerName = meter!.SortingLayer;
+		burstOrder.order = 10;
 
-		HeroController.instance.InvokeNextFrame(FixPositionAndLayering);
-	}
+		Shader blendModeScreen =
+			Resources.FindObjectsOfTypeAll<Shader>()
+			.FirstOrDefault(x => x.name == "UI/BlendModes/Screen");
 
-	private static IEnumerator MeterCoro(BindOrbHudFrame hudInstance) {
-		PlayerData pd = PlayerData.instance;
-		GameObject
-			mask = Hud.Root!.FindChild("mask")!,
-			burst = Hud.Root!.FindChild("burst")!;
-
-		var burstanim = burst.GetOrAddComponent<tk2dSpriteAnimator>();
-		burstanim.library = hudInstance.animator.library;
-		burstanim.DefaultClipId = hudInstance.animator.library.GetClipIdByName("Soul Burst Q");
-
-		while (true) {
-			if (HeroController.instance.IsPaused()) {
-				yield return null;
-				continue;
-			}
-			int masksMissing = pd.maxHealth - pd.health;
-			if (masksMissing == 9) {
-				if (mask.transform.localScale != Vector3.one) {
-					burst.SetActive(false);
-					burst.SetActive(true);
-					hudInstance.wandererHarpAppearAudio.SpawnAndPlayOneShot(
-						GlobalSettings.Audio.DefaultUIAudioSourcePrefab,
-						hudInstance.transform.position
-					);
-				}
-				mask.transform.localScale = Vector3.one;
-			}
-			else {
-				mask.transform.localScale = (masksMissing / 10f) * Vector3.one;
-			}
-			yield return null;
-		}
-	}
-
-	#region Local Utilities
-
-	private static SortingGroup AddSortingGroup(GameObject go, int order) {
-		var group = go.AddComponent<SortingGroup>();
-		group.sortingLayerName = "Over";
-		group.sortingOrder = order;
-		return group;
-	}
-
-	private static GameObject NewSortingGroup(
-		string name, int order, GameObject? group = null
-	) {
-		GameObject elt = new(name);
-
-		if (group)
-			elt.transform.SetParent(group!.transform);
-		else
-			elt.transform.SetParent(Hud.Root!.transform);
-
-		elt.transform.localScale = Vector3.one;
-		elt.transform.localPosition = Vector3.zero;
-		elt.layer = (int)PhysLayers.UI;
-
-		AddSortingGroup(elt, order);
-
-		return elt;
-	}
-
-	private static (GameObject, T) NewHudElement<T>(
-		string name, int order, GameObject? group = null
-	) where T : Renderer {
-		GameObject elt = new(name);
-
-		if (group)
-			elt.transform.SetParent(group!.transform);
-		else
-			elt.transform.SetParent(Hud.Root!.transform);
-
-		elt.transform.localScale = Vector3.one;
-		elt.transform.localPosition = Vector3.zero;
-		elt.layer = (int)PhysLayers.UI;
-
-		T renderer = elt.AddComponent<T>();
-		renderer.sortingLayerName = "Over";
-		renderer.sortingOrder = order;
-
-		return (elt, renderer);
+		glowGo = new GameObject("Glow") { layer = (int)meter.Layer };
+		glowGo.transform.parent = root.transform;
+		glowGo.transform.localPosition = Vector3.zero;
+		glowGo.transform.localScale = Vector3.one;
+		var glowRend = glowGo.AddComponent<SpriteRenderer>();
+		glowRend.sortingLayerName = meter.SortingLayer;
+		glowRend.sortingOrder = 9;
+		glowRend.sprite = AssetUtil.LoadSprite($"{path}.glow.png");
+		glowRend.color = new Color(0, 0, 0, 0);
+		if (blendModeScreen)
+			glowRend.material = new(blendModeScreen);
+		glowFader = glowGo.AddComponent<SimpleSpriteFade>();
+		glowFader.fadeInColor = new Color(0.9f, 0.9f, 0.9f, 0.9f);
+		glowFader.normalColor = glowRend.color;
+		glowFader.fadeDuration = 0.08f;
 	}
 
 	/// <summary>
@@ -161,18 +140,81 @@ internal static class HUD {
 		rootParent.localScale = Vector3.one;
 		rootParent.localPosition = Vector3.zero;
 
-		var activator = rootParent.gameObject.GetOrAddComponent<HudRootActivator>();
-		activator.hudroot = root.gameObject;
-		activator.crest = SifCrest;
-
-		root.localScale = Vector3.one;
+		root.SetLocalPosition2D(-1.525f, 0.15f);
 
 		// critical for layering the hud frame, meter, and full-silk-orb correctly
-		float bindOrbZ = hudFrame.position.z;
-		Vector3 rootPos = root.position;
-		root.position = new(rootPos.x, rootPos.y, bindOrbZ - 0.00001f);
+		root.SetPositionZ(hudFrame.position.z - 0.0001f);
 	}
 
-	#endregion
+
+	private static IEnumerator MeterCoro(BindOrbHudFrame hudInstance) {
+		PlayerData pd = PlayerData.instance;
+
+		var burstanim = burstGo!.GetOrAddComponent<tk2dSpriteAnimator>();
+		burstanim.library = hudInstance.animator.library;
+		burstanim.DefaultClipId = hudInstance.animator.library.GetClipIdByName("Soul Burst Q");
+
+		int
+			minKey = MetersByMaxHP.Keys.Min(),
+			maxKey = MetersByMaxHP.Keys.Max(),
+			prevMax = pd.maxHealth,
+			maxMissing = pd.maxHealth - 1,
+			prevMissing = pd.maxHealth - pd.health;
+
+		AudioSource sfxPrefab = GlobalSettings.Audio.DefaultUIAudioSourcePrefab;
+		Vector3 husPos = hudInstance.transform.position;
+		AudioEvent
+			appearAudio = hudInstance.wandererHarpAppearAudio,
+			disappearAudio = hudInstance.wandererHarpDisappearAudio;
+
+		meter!.valueToScale = (val, min, max) => {
+			if (val <= min)
+				return Vector3.zero;
+			else if (val >= max || val >= maxMissing)
+				return Vector3.one;
+			else
+				return Vector3.one * (val / 12f + 1 / 10f);
+		};
+
+		while (true) {
+			if (HeroController.instance.IsPaused()) {
+				yield return null;
+				continue;
+			}
+
+			if (prevMax != pd.maxHealth) {
+				prevMax = pd.maxHealth;
+				prevMissing = -1;
+				int key = Mathf.Clamp(pd.maxHealth, minKey, maxKey);
+
+				var entry = MetersByMaxHP[key];
+
+				meter!.Line = entry.line;
+				meter!.Fill = entry.fill;
+				maxMissing = pd.maxHealth - 1;
+			}
+
+			int missing = pd.maxHealth - pd.health;
+
+			if (prevMissing != missing) {
+
+				if (missing == maxMissing) {
+					burstGo!.SetActive(false);
+					burstGo!.SetActive(true);
+					glowGo!.SetActive(true);
+					appearAudio.SpawnAndPlayOneShot(sfxPrefab, husPos);
+					glowFader!.FadeIn();
+				}
+				else if (prevMissing == maxMissing) {
+					disappearAudio.SpawnAndPlayOneShot(sfxPrefab, husPos);
+					glowFader!.FadeOut();
+				}
+
+				meter!.Value = prevMissing = missing;
+			}
+
+			yield return null;
+		}
+	}
 
 }

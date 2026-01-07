@@ -1,6 +1,8 @@
-﻿using System.Reflection;
-using UnityEngine;
+﻿using Newtonsoft.Json;
 using Silksong.UnityHelper.Util;
+using System.IO;
+using System.Reflection;
+using UnityEngine;
 
 namespace TravellerCrest.Utils;
 
@@ -8,30 +10,35 @@ internal static class AssetUtil {
 
 	public static readonly Assembly Asm = Assembly.GetExecutingAssembly();
 
-	public static Sprite LoadSprite(string path, bool premultiply = true, Vector2? pivot = null, float ppu = 64) {
-		Sprite sprite = SpriteUtil.LoadEmbeddedSprite(Asm, path, ppu, pivot);
-		if (premultiply)
-			PremultiplyAlpha(sprite.texture);
+	public static T ReadJson<T>(string path) {
+		T value;
+		using (StreamReader reader = new(Asm.GetManifestResourceStream(path))) {
+			value = JsonConvert.DeserializeObject<T>(reader.ReadToEnd())!;
+		}
+		return value;
+	}
+
+	public static Sprite LoadSprite(string path, float ppu = 64, Vector2? pivot = null, bool unreadable = true) {
+		var sprite = SpriteUtil.LoadEmbeddedSprite(Asm, path, ppu, pivot).PremultiplyAlpha();
+		if (unreadable)
+			sprite.Unreadable();
 		return sprite;
 	}
 
-	public static Texture2D LoadTexture(string path, bool premultiply = true) {
-		Texture2D tex = SpriteUtil.LoadEmbeddedTexture(Asm, path);
-		if (premultiply)
-			PremultiplyAlpha(tex);
+	public static Texture2D LoadTexture(string path, bool unreadable = false) {
+		var tex = SpriteUtil.LoadEmbeddedTexture(Asm, path).PremultiplyAlpha();
+		if (unreadable)
+			tex.MakeUnreadable();
 		return tex;
 	}
 
-	public static Texture2D PremultiplyAlpha(Texture2D source) {
-		Color32[] pixels = source.GetPixels32();
+	public static Sprite Unreadable(this Sprite source) {
+		source.texture.MakeUnreadable();
+		return source;
+	}
 
-		for (int i = 0; i < pixels.Length; i++) {
-			Color px = pixels[i];
-			pixels[i] = new Color(px.r * px.a, px.g * px.a, px.b * px.a, px.a);
-		}
-
-		source.SetPixels32(pixels);
-		source.Apply();
+	public static Texture2D MakeUnreadable(this Texture2D source) {
+		source.Apply(false, makeNoLongerReadable: true);
 		return source;
 	}
 

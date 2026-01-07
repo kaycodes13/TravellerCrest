@@ -3,11 +3,11 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Needleforge;
 using Needleforge.Data;
-using System.Reflection;
+using Silksong.UnityHelper.Extensions;
 using TeamCherry.Localization;
 using TravellerCrest.Mechanics;
+using TravellerCrest.Utils;
 using UnityEngine;
-using static TravellerCrest.Utils.AssetUtil;
 
 namespace TravellerCrest;
 
@@ -67,9 +67,9 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 		const string path = $"{nameof(TravellerCrest)}.Assets.Sprites";
 
-		SifCrest.RealSprite = LoadSprite($"{path}.crest_lines.png", ppu: 100);
-		SifCrest.Silhouette = LoadSprite($"{path}.crest_silhouette.png", ppu: 200);
-		SifCrest.CrestGlow = LoadSprite($"{path}.crest_glow.png", ppu: 284);
+		SifCrest.RealSprite = AssetUtil.LoadSprite($"{path}.crest_lines.png", ppu: 100);
+		SifCrest.Silhouette = AssetUtil.LoadSprite($"{path}.crest_silhouette.png", ppu: 200);
+		SifCrest.CrestGlow = AssetUtil.LoadSprite($"{path}.crest_glow.png", ppu: 284);
 
 		SifCrest.AddRedSlot(AttackToolBinding.Up, new(-0.13f, 2.59f), false);
 		SifCrest.AddSkillSlot(AttackToolBinding.Neutral, new(0.15f, -0.32f), false);
