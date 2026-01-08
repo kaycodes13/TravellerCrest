@@ -1,13 +1,20 @@
-﻿using GlobalEnums;
+﻿using Coffee.UISoftMask;
+using GlobalEnums;
 using Silksong.UnityHelper.Extensions;
-using System;
-using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.Rendering;
+using UnityEngine.UI;
 
 namespace TravellerCrest.Components;
 
+/// <summary>
+/// Attaching this to a <see cref="GameObject"/> builds out a <see cref="Canvas"/>
+/// hierarchy representing a meter that fills via a sprite in its center growing outward.
+/// </summary>
 internal class MeterCenterFill : MonoBehaviour {
+	/// <summary>
+	/// Current value of the meter. Change at any point to change how full the meter is.
+	/// </summary>
 	public float Value {
 		get => _val;
 		set {
@@ -17,6 +24,9 @@ internal class MeterCenterFill : MonoBehaviour {
 	}
 	private float _val = 0;
 
+	/// <summary>
+	/// Minimum value of the meter. Default 0.
+	/// </summary>
 	public float Min {
 		get => _mn;
 		set {
@@ -26,6 +36,9 @@ internal class MeterCenterFill : MonoBehaviour {
 	}
 	private float _mn = 0;
 
+	/// <summary>
+	/// Maximum value of the meter. Default 1.
+	/// </summary>
 	public float Max {
 		get => _mx;
 		set {
@@ -35,100 +48,67 @@ internal class MeterCenterFill : MonoBehaviour {
 	}
 	private float _mx = 1;
 
-	public ValueToScale? valueToScale;
+	/// <summary>
+	/// Optional function determining how the scale of the meter fill sprite is affected
+	/// by the <see cref="Value"/>.
+	/// By default, Value's position between <see cref="Min"/> and <see cref="Max"/>
+	/// is mapped linearly to the range [0, 1].
+	/// </summary>
+	public ValueToScale? ValueToScaleFn { get; set; }
 
-	public delegate Vector3 ValueToScale(float val, float minVal, float maxVal);
+	public delegate float ValueToScale(float val, float minVal, float maxVal);
 
-	private static Vector3 DefaultScaler(float val, float minVal, float maxVal)
-		=> Vector3.one * ((val - minVal) / (maxVal - minVal));
-
-
-	public Sprite Fill {
+	/// <summary>
+	/// Sprite to use for the fully-filled portion of the meter.
+	/// This will also hard-mask the backboard to ensure everything fits together.
+	/// </summary>
+	public Sprite? Fill {
 		get => _fill;
 		set {
 			_fill = value;
-			if (fillGo) fillGo.SetSprite(value, SpriteMaskInteraction.VisibleInsideMask);
-			if (backMaskGo) backMaskGo.SetSprite(value, SpriteMaskInteraction.VisibleInsideMask);
+			if (fillGo) fillGo.GetComponent<Image>().sprite = value;
+			if (backMaskGo) backMaskGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite _fill;
+	private Sprite? _fill;
 
-	public Sprite FillMask {
+	/// <summary>
+	/// Sprite used to soft-mask <see cref="Fill"/> when the meter is partially full.
+	/// </summary>
+	public Sprite? FillMask {
 		get => _fillMask;
 		set {
 			_fillMask = value;
-			if (fillMaskGo) fillMaskGo.SetSprite(value);
+			if (fillMaskGo) fillMaskGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite _fillMask;
+	private Sprite? _fillMask;
 
-	public Sprite Backboard {
+	/// <summary>
+	/// Sprite to use for the back of the unfilled meter.
+	/// </summary>
+	public Sprite? Backboard {
 		get => _backboard;
 		set {
 			_backboard = value;
-			if (backGo) backGo.SetSprite(value, SpriteMaskInteraction.VisibleInsideMask);
+			if (backGo) backGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite _backboard;
+	private Sprite? _backboard;
 
-	public Sprite Line {
+	/// <summary>
+	/// Lineart sprite on top of the meter to hide its edge.
+	/// </summary>
+	public Sprite? Line {
 		get => _line;
 		set {
 			_line = value;
-			if (lineGo) lineGo.SetSprite(value, SpriteMaskInteraction.None);
+			if (lineGo) lineGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite _line;
+	private Sprite? _line;
 
-	private void UpdateMeter() {
-		if (!fillMaskGo)
-			return;
-
-		Vector3 valueScale = (valueToScale ?? DefaultScaler).Invoke(Value, Min, Max);
-		StopAllCoroutines();
-		fillMaskGo.transform.ScaleTo(this, valueScale, 0.1f);
-	}
-
-	public PhysLayers Layer {
-		get => _layr;
-		set {
-			_layr = value;
-			if (didAwake) {
-				gameObject.layer = (int)value;
-				foreach (Transform t in transform.GetAllDescendants())
-					t.gameObject.layer = (int)value;
-			}
-		}
-	}
-	private PhysLayers _layr = PhysLayers.UI;
-
-
-	public string SortingLayer {
-		get => _sortLayr;
-		set {
-			_sortLayr = value;
-			if (didAwake) {
-				gameObject.GetComponent<SortingGroup>().sortingLayerName = value;
-
-				foreach (var r in transform.GetComponentsInDescendants<Renderer>())
-					r.sortingLayerName = value;
-				foreach (var sg in transform.GetComponentsInDescendants<SortingGroup>())
-					sg.sortingLayerName = value;
-			}
-		}
-	}
-	private string _sortLayr = "Over";
-
-	public int SortingOrder {
-		get => _sortOrder;
-		set {
-			_sortOrder = value;
-			if (TryGetComponent<SortingGroup>(out var sg))
-				sg.sortingOrder = value;
-		}
-	}
-	private int _sortOrder = default;
-
+	private Coroutine? valueCoro;
 
 	private GameObject
 		lineGo,
@@ -138,110 +118,79 @@ internal class MeterCenterFill : MonoBehaviour {
 		backGo;
 
 	private void Awake() {
-		gameObject.AddSortingGroup(SortingLayer, SortingOrder);
-		gameObject.layer = (int)Layer;
+		var canvas = gameObject.GetOrAddComponent<Canvas>();
+		canvas.worldCamera = GameManager.instance.gameCams.hudCamera;
 
-		lineGo =
-			NewGO("Lineart", order: 3, components: typeof(SpriteRenderer))
-			.SetSprite(Line, SpriteMaskInteraction.None);
+		var canvScaler = gameObject.GetOrAddComponent<CanvasScaler>();
+		canvScaler.referencePixelsPerUnit = 1;
 
-		var fillGroup = NewGO("Fill Group").AddSortingGroup(SortingLayer, order: 1);
+		backMaskGo = NewGO("Backboard Mask", transform);
+		AddImage(backMaskGo, Fill, maskable: false);
+		backMaskGo.AddComponent<Mask>();
 
-		var backGroup = NewGO("Backboard Group").AddSortingGroup(SortingLayer, order: 0);
+			backGo = NewGO("Backboard", backMaskGo.transform);
+			AddImage(backGo, Backboard, maskable: true);
 
+		fillMaskGo = NewGO("Fill Mask", transform);
+		AddImage(fillMaskGo, FillMask, maskable: false);
+		var fillmask = fillMaskGo.AddComponent<SoftMask>();
+		fillmask.showMaskGraphic = false;
+		fillMaskGo.AddComponent<SoftMaskFixer>();
 
-		fillMaskGo =
-			NewGO("Fill Mask", fillGroup, order: 1, components: typeof(SpriteMask))
-			.SetSprite(FillMask);
+			fillGo = NewGO("Fill", fillMaskGo.transform);
+			AddImage(fillGo, Fill, maskable: true);
+			fillGo.AddComponent<SoftMaskable>();
 
-		fillGo =
-			NewGO("Fill", fillGroup, order: 0, components: typeof(SpriteRenderer))
-			.SetSprite(Fill, SpriteMaskInteraction.VisibleInsideMask);
-
-
-		backMaskGo =
-			NewGO("Backboard Mask", backGroup, order: 1, components: typeof(SpriteMask))
-			.SetSprite(Fill);
-
-		backGo =
-			NewGO("Backboard", backGroup, order: 0, components: typeof(SpriteRenderer))
-			.SetSprite(Backboard, SpriteMaskInteraction.VisibleInsideMask);
-
+		lineGo = NewGO("Lineart", transform);
+		AddImage(lineGo, Line, maskable: false);
 	}
 
 	private void Start() {
-		gameObject.transform.localScale = Vector3.zero;
+		gameObject.GetComponent<Canvas>().sortingLayerName = "Over";
 	}
 
-	private GameObject NewGO(string name, GameObject? parent = null, int order = 0, params Type[] components) {
+	private void UpdateMeter() {
+		if (!fillMaskGo)
+			return;
+
+		float valueScale = (ValueToScale ?? DefaultScaler).Invoke(Value, Min, Max);
+
+		var sizer = fillMaskGo.GetComponent<LockToPreferredSize>();
+
+		if (Mathf.Approximately(valueScale, sizer.Scale))
+			return;
+
+		if (valueCoro != null)
+			StopCoroutine(valueCoro);
+		valueCoro = StartCoroutine(ScaleFill(0.1f, valueScale));
+		
+		IEnumerator ScaleFill(float duration, float finalScale) {
+			float initialScale = sizer.Scale;
+			for (float elapsed = 0; elapsed < duration; elapsed += Time.deltaTime) {
+				sizer.Scale = Mathf.Lerp(initialScale, finalScale, elapsed / duration);
+				yield return null;
+			}
+			sizer.Scale = finalScale;
+		}
+	}
+
+	private static float ValueToScaleLinear(float val, float minVal, float maxVal)
+		=> (val - minVal) / (maxVal - minVal);
+
+	private static GameObject NewGO(string name, Transform parent) {
 		GameObject go = new(name) { layer = (int)PhysLayers.UI };
-
-		go.transform.parent = parent ? parent.transform : transform;
-		go.ResetTransform();
-
-		foreach (Type cType in components) {
-			var c = go.AddComponent(cType);
-			if (c is Renderer)
-				go.SetRendererSort(SortingLayer, order);
-		}
-
-		return go;
-	}
-
-}
-
-file static class Ext {
-
-	public static GameObject AddSortingGroup(this GameObject go, string layer, int order) {
-		var group = go.GetOrAddComponent<SortingGroup>();
-		group.sortingLayerName = layer;
-		group.sortingOrder = order;
-		return go;
-	}
-
-	public static GameObject SetRendererSort(this GameObject go, string layer, int order) {
-		if (go.TryGetComponent<Renderer>(out var r)) {
-			r.sortingLayerName = layer;
-			r.sortingOrder = order;
-		}
-		return go;
-	}
-
-	public static GameObject SetSprite(this GameObject go, Sprite sprite, SpriteMaskInteraction maskInteraction = SpriteMaskInteraction.None) {
-		if (go.TryGetComponent<SpriteMask>(out var sm))
-			sm.sprite = sprite;
-		else if (go.TryGetComponent<SpriteRenderer>(out var sr)) {
-			sr.sprite = sprite;
-			sr.maskInteraction = maskInteraction;
-		}
-		return go;
-	}
-
-	public static GameObject ResetAllTransforms(this GameObject go) {
-		ResetTransform(go);
-		foreach (Transform child in go.transform)
-			ResetAllTransforms(child.gameObject);
-		return go;
-	}
-	public static GameObject ResetTransform(this GameObject go) {
+		go.transform.parent = parent;
 		go.transform.localScale = Vector3.one;
 		go.transform.localPosition = Vector3.zero;
 		return go;
 	}
 
-	public static IEnumerable<Transform> GetAllDescendants(this Transform transform) {
-		List<Transform> descendants = [transform];
-		foreach (Transform t in transform)
-			descendants.AddRange(t.GetAllDescendants());
-		return descendants;
-	}
-
-	public static IEnumerable<T> GetComponentsInDescendants<T>(this Transform transform) where T : Component {
-		List<T> comps = [transform.GetComponent<T>()];
-		foreach (Transform t in transform)
-			comps.AddRange(t.GetComponentsInDescendants<T>());
-		return comps;
+	private static void AddImage(GameObject go, Sprite? sprite, bool maskable) {
+		var img = go.AddComponent<Image>();
+		img.preserveAspect = true;
+		img.maskable = maskable;
+		img.sprite = sprite;
+		go.AddComponent<LockToPreferredSize>();
 	}
 
 }
-

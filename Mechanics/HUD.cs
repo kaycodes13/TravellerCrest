@@ -32,6 +32,7 @@ internal static class HUD {
 	private static SimpleSpriteFade? glowFader;
 
 	private static GameObject?
+		meterGo,
 		glowGo,
 		burstGo;
 
@@ -71,10 +72,43 @@ internal static class HUD {
 	private static void BuildRoot() {
 		HeroController.instance.InvokeNextFrame(FixPositionAndLayering);
 		GameObject root = Hud.Root!;
+		root.transform.SetScale2D(Vector2.zero);
 
 		var activator = root.GetOrAddComponent<HudRootAnimator>();
 		activator.hudroot = root;
 		activator.crest = SifCrest;
+
+		burstGo = new GameObject("Burst Anim") { layer = (int)PhysLayers.UI };
+		burstGo.SetActive(false);
+		burstGo.transform.parent = root.transform;
+		burstGo.transform.localScale = 0.6f * Vector3.one;
+		burstGo.transform.localPosition = Vector3.zero;
+		burstGo.transform.SetLocalPositionZ(-0.0002f);
+		burstGo.AddComponent<tk2dSprite>();
+		var burstDeac = burstGo.AddComponent<DeactivateAfter2dtkAnimation>();
+		burstDeac.animators = [burstGo.AddComponent<tk2dSpriteAnimator>()];
+		var burstOrder = burstGo.AddComponent<MeshSortingOrder>();
+		burstOrder.layerName = "Over";
+
+		Shader blendModeScreen =
+			Resources.FindObjectsOfTypeAll<Shader>()
+			.FirstOrDefault(x => x.name == "UI/BlendModes/Screen");
+
+		glowGo = new GameObject("Glow") { layer = (int)PhysLayers.UI };
+		glowGo.transform.parent = root.transform;
+		glowGo.transform.localScale = Vector3.one;
+		glowGo.transform.localPosition = Vector3.zero;
+		glowGo.transform.SetLocalPositionZ(-0.0001f);
+		var glowRend = glowGo.AddComponent<SpriteRenderer>();
+		glowRend.sortingLayerName = "Over";
+		glowRend.sprite = AssetUtil.LoadSprite($"{path}.glow.png");
+		glowRend.color = new Color(0, 0, 0, 0);
+		if (blendModeScreen)
+			glowRend.material = new(blendModeScreen);
+		glowFader = glowGo.AddComponent<SimpleSpriteFade>();
+		glowFader.fadeInColor = new Color(0.9f, 0.9f, 0.9f, 0.9f);
+		glowFader.normalColor = glowRend.color;
+		glowFader.fadeDuration = 0.08f;
 
 		int
 			maxHp = PlayerData.instance.maxHealth,
@@ -84,7 +118,11 @@ internal static class HUD {
 
 		MeterSprites meterSprites = MetersByMaxHP[key];
 
-		meter = root.AddComponent<MeterCenterFill>();
+		meterGo = new("Meter") { layer = (int)PhysLayers.UI };
+		meterGo.transform.parent = root.transform;
+		meterGo.transform.localScale = Vector3.one;
+		meterGo.transform.localPosition = Vector3.zero;
+		meter = meterGo.AddComponent<MeterCenterFill>();
 		meter.Fill = meterSprites.fill;
 		meter.Line = meterSprites.line;
 		meter.Backboard = AssetUtil.LoadSprite($"{path}.backboard.png");
@@ -92,38 +130,6 @@ internal static class HUD {
 		meter.Min = 0;
 		meter.Max = maxKey - 1;
 		meter.Value = 0;
-
-		burstGo = new GameObject("Burst Anim") { layer = (int)meter.Layer };
-		burstGo.SetActive(false);
-		burstGo.transform.parent = root.transform;
-		burstGo.transform.localPosition = Vector3.zero;
-		burstGo.transform.localScale = 0.6f * Vector3.one;
-		burstGo.AddComponent<tk2dSprite>();
-		var burstDeac = burstGo.AddComponent<DeactivateAfter2dtkAnimation>();
-		burstDeac.animators = [burstGo.AddComponent<tk2dSpriteAnimator>()];
-		var burstOrder = burstGo.AddComponent<MeshSortingOrder>();
-		burstOrder.layerName = meter!.SortingLayer;
-		burstOrder.order = 10;
-
-		Shader blendModeScreen =
-			Resources.FindObjectsOfTypeAll<Shader>()
-			.FirstOrDefault(x => x.name == "UI/BlendModes/Screen");
-
-		glowGo = new GameObject("Glow") { layer = (int)meter.Layer };
-		glowGo.transform.parent = root.transform;
-		glowGo.transform.localPosition = Vector3.zero;
-		glowGo.transform.localScale = Vector3.one;
-		var glowRend = glowGo.AddComponent<SpriteRenderer>();
-		glowRend.sortingLayerName = meter.SortingLayer;
-		glowRend.sortingOrder = 9;
-		glowRend.sprite = AssetUtil.LoadSprite($"{path}.glow.png");
-		glowRend.color = new Color(0, 0, 0, 0);
-		if (blendModeScreen)
-			glowRend.material = new(blendModeScreen);
-		glowFader = glowGo.AddComponent<SimpleSpriteFade>();
-		glowFader.fadeInColor = new Color(0.9f, 0.9f, 0.9f, 0.9f);
-		glowFader.normalColor = glowRend.color;
-		glowFader.fadeDuration = 0.08f;
 	}
 
 	/// <summary>
@@ -167,13 +173,13 @@ internal static class HUD {
 			appearAudio = hudInstance.wandererHarpAppearAudio,
 			disappearAudio = hudInstance.wandererHarpDisappearAudio;
 
-		meter!.valueToScale = (val, min, max) => {
+		meter!.ValueToScaleFn = (val, min, max) => {
 			if (val <= min)
-				return Vector3.zero;
+				return 0;
 			else if (val >= max || val >= maxMissing)
-				return Vector3.one;
+				return 2;
 			else
-				return Vector3.one * (val / 12f + 1 / 10f);
+				return val / 12f + 1 / 10f;
 		};
 
 		while (true) {
