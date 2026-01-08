@@ -1,5 +1,4 @@
 ﻿using Needleforge.Attacks;
-using TravellerCrest.Components;
 using UnityEngine;
 
 namespace TravellerCrest.Attacks;

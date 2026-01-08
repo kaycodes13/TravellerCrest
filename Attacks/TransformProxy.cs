@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace TravellerCrest.Components;
+namespace TravellerCrest.Attacks;
 
 /// <summary>
 /// Provides an API for changing the position and rotation of an attack.

@@ -2,7 +2,6 @@
 using Silksong.UnityHelper.Extensions;
 using System.Linq;
 using TeamCherry.SharedUtils;
-using TravellerCrest.Components;
 
 namespace TravellerCrest.Attacks;
 

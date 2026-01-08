@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace TravellerCrest.Components;
+namespace TravellerCrest.Attacks;
 
 /// <summary>
 /// Base class for adding groups of additional settings to descendants of <see cref="Needleforge.Attacks.GameObjectProxy"/>.

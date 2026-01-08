@@ -1,7 +1,7 @@
 ﻿using Needleforge.Components;
 using UnityEngine;
 
-namespace TravellerCrest.Components;
+namespace TravellerCrest.Attacks;
 
 /// <summary>
 /// Makes an attack travel over time.
