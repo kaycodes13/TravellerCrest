@@ -2,10 +2,10 @@
 
 namespace TravellerCrest.Attacks;
 
-internal class ChargeAttackStepTravelling : ChargedAttack.Step {
-	public NailSlashTravelProxy? Travel { get; set; }
+internal class ChargeAttackStepPositionable : ChargedAttack.Step {
+	public TransformProxy? Transform { get; set; }
 	protected override void LateInitializeComponents(HeroController hc) {
 		base.LateInitializeComponents(hc);
-		Travel?.Initialize(GameObject!);
+		Transform?.Initialize(GameObject!);
 	}
 }

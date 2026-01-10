@@ -68,6 +68,19 @@
 					"HUD.hud_1.png",
 					"HUD.hud_0.png"
 				]
+			},
+
+			{
+				"Name": "Slash_Charged Effect",
+				"Fps": 14,
+				"WrapMode": "Once",
+				"Triggers": [ 0, 3 ],
+				"Frames": [
+					"Attacks.ja_0.png",
+					"Attacks.ja_1.png",
+					"Attacks.ja_2.png",
+					"Attacks.ja_3.png"
+				]
 			}
 		]
 	}

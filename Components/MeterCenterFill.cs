@@ -153,7 +153,7 @@ internal class MeterCenterFill : MonoBehaviour {
 		if (!fillMaskGo)
 			return;
 
-		float valueScale = (ValueToScale ?? DefaultScaler).Invoke(Value, Min, Max);
+		float valueScale = (ValueToScaleFn ?? ValueToScaleLinear).Invoke(Value, Min, Max);
 
 		var sizer = fillMaskGo.GetComponent<LockToPreferredSize>();
 

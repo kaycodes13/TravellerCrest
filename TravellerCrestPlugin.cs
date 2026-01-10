@@ -3,7 +3,6 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Needleforge;
 using Needleforge.Data;
-using Silksong.UnityHelper.Extensions;
 using TeamCherry.Localization;
 using TravellerCrest.Mechanics;
 using TravellerCrest.Utils;

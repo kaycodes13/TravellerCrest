@@ -16,6 +16,24 @@ internal static class Moveset {
 	private const float STUN_DAMAGE = 0.8f;
 	private const float DOWN_ATTACK_GAP = 0.01f;
 
+	private static readonly Vector2[] JUST_ATTACK_HITBOX = [
+		new(-2f, 0.1f),
+		new(-0.8f, 1.9f),
+		new(-1.6f, 2f),
+		new(-2.6f, 1.7f),
+		new(-3.3f, 1f),
+		new(-4f, 0f),
+		new(-3.2f, -1f),
+		new(-2.5f, -1.5f),
+		new(-1.6f, -1.8f),
+		new(-0.8f, -1.7f),
+	];
+
+	static HeroController Hc => HeroController.instance;
+	static MovesetData Moves => SifCrest.Moveset;
+	static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
+	static AudioClip GetSound(GameObject go) => go.GetComponent<AudioSource>().clip;
+
 	internal static void Setup() {
 		Moves.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
 
@@ -346,25 +364,17 @@ internal static class Moveset {
 		);
 		Config.DashSlashFsmEdit = DashSlashFsmEdit;
 
-		const float endLagMult = 3f;
-
-		Vector2 distance = new(-4, 0f);
-		float duration = 0.4f * endLagMult;
-		AnimationCurve easeOut = new(
-			new Keyframe(time: 0, value: 0, inTangent: 0, outTangent: 3),
-			new Keyframe(time: 1f / endLagMult, value: 1),
-			new Keyframe(time: 1, value: 1)
-		);
-
 		Moves.DashSlash = new DashAttack {
 			Name = "Dash",
 			Steps = [
-				new DashAttackStepTravelling {
-					AnimName = "Dash Attack Effect TEST",
-					Hitbox = [new(0, -1), new(0, 1), new(-2, 1), new(-2, -1)],
-					Travel = new() {
-						Distance = distance, Duration = duration, Curve = easeOut,
-					}
+				new DashAttackStepPositionable {
+					AnimName = "Slash_Charged Effect",
+					Hitbox = JUST_ATTACK_HITBOX,
+					Transform = new() {
+						Position = new(-5, 0, 0),
+					},
+					Scale = new(-1, 0.8f),
+					KeepWorldPosition = true,
 				}
 			]
 		};
@@ -400,7 +410,7 @@ internal static class Moveset {
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
-				deceleration = 0.65f,
+				deceleration = 0.85f,
 				brakeOnExit = false,
 			}
 		);
@@ -427,7 +437,7 @@ internal static class Moveset {
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
-				deceleration = 0.95f,
+				deceleration = 0.9f,
 				brakeOnExit = false,
 			}
 		);
@@ -452,41 +462,49 @@ internal static class Moveset {
 	private static void ChargedSlash() {
 		Config.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
 
-		const float endLagMult = 3f;
-
-		Vector2 distance = new(-4, 0f);
-		float duration = 0.4f * endLagMult;
-		AnimationCurve easeOut = new(
-			new Keyframe(time: 0, value: 0, inTangent: 0, outTangent: 3),
-			new Keyframe(time: 1f / endLagMult, value: 1),
-			new Keyframe(time: 1, value: 1)
-		);
+		float knockback = 0.1f, damage = 0.6667f;
 
 		Moves.ChargedSlash = new ChargedAttack {
 			Name = "Charged",
 			PlayOnActivation = false,
 			PlayStepsInSequence = false,
-			CameraShakeProfiles = [Camera.TinyShake],
+			CameraShakeProfiles = [Camera.TinyShake, Camera.EnemyKillShake],
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
-				new ChargeAttackStepTravelling {
-					AnimName = "Slash_Charged Effect TEST",
-					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
+				new ChargeAttackStepPositionable {
+					AnimName = "Slash_Charged Effect",
+					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 0,
 					ScreenFlashIndex = 0,
-					Travel = new() {
-						Distance = distance, Duration = duration, Curve = easeOut,
+					Transform = new() {
+						Position = new(-5.5f, 0, 0),
 					},
-					Scale = new(0.5f, 2),
+					Scale = new(-1, 1),
+					KnockbackMult = knockback,
+					DamageMult = damage,
 				},
-				new ChargeAttackStepTravelling {
-					AnimName = "Slash_Charged Effect TEST",
-					Hitbox = [new(0, -1), new(0, 1), new(-2, 0)],
+				new ChargeAttackStepPositionable {
+					AnimName = "Slash_Charged Effect",
+					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 0,
 					ScreenFlashIndex = 0,
-					Travel = new() {
-						Distance = distance, Duration = duration, Curve = easeOut,
+					Transform = new() {
+						Position = new(0.5f, 0, 0),
 					},
+					KnockbackMult = knockback,
+					DamageMult = damage,
+				},
+				new ChargeAttackStepPositionable {
+					AnimName = "Slash_Charged Effect",
+					Hitbox = JUST_ATTACK_HITBOX,
+					CameraShakeIndex = 1,
+					ScreenFlashIndex = 0,
+					Transform = new() {
+						Position = new(-5.5f, 0, 0),
+					},
+					Scale = new(-1, 1),
+					KnockbackMult = 0.8f,
+					DamageMult = damage,
 				},
 			]
 		};
@@ -517,12 +535,17 @@ internal static class Moveset {
 			ownerStepTwo = new() {
 				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
 				GameObject = Moves.ChargedSlash!.Steps[1].GameObject!
+			},
+			ownerStepThree = new() {
+				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
+				GameObject = Moves.ChargedSlash!.Steps[2].GameObject!
 			};
 
 		FsmState
 			beginAttackState = fsm.AddState($"{SifId} Attack Starting"),
 			stepOneState = fsm.AddState($"{SifId} Attack Step 1"),
 			stepTwoState = fsm.AddState($"{SifId} Attack Step 2"),
+			stepThreeState = fsm.AddState($"{SifId} Attack Step 3"),
 			recoveryState = fsm.AddState($"{SifId} Recovery");
 
 		// Play hornet antic anim, decelerate
@@ -580,7 +603,7 @@ internal static class Moveset {
 		);
 		stepOneState.AddTransition(FsmEvent.Finished.name, stepTwoState.name);
 
-		// Fire second attack, start recovering when anim finished
+		// Fire second attack, start third step on third anim trigger
 		stepTwoState.AddActions(
 			new SendMessageV2 {
 				gameObject = ownerStepTwo,
@@ -590,10 +613,26 @@ internal static class Moveset {
 			},
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
+				animationTriggerEvent = FsmEvent.Finished,
+			}
+		);
+		stepTwoState.AddTransition(FsmEvent.Finished.name, stepThreeState.name);
+
+		// Fire third attack, start recovering when anim finished
+		stepThreeState.AddActions(
+			new SendMessageV2 {
+				gameObject = ownerStepThree,
+				delivery = SendMessageV2.MessageType.SendMessage,
+				options = SendMessageOptions.DontRequireReceiver,
+				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
+			},
+			new Tk2dWatchAnimationEvents {
+				gameObject = ownerHornet,
+				animationTriggerEvent = FsmEvent.Finished,
 				animationCompleteEvent = FsmEvent.Finished,
 			}
 		);
-		stepTwoState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
+		stepThreeState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
 
 		recoveryState.AddActions(
 			new SendMessageV2 {
@@ -608,15 +647,6 @@ internal static class Moveset {
 
 		endStates = [recoveryState];
 	}
-
-	#endregion
-
-	#region Local Utilities
-
-	static HeroController Hc => HeroController.instance;
-	static MovesetData Moves => SifCrest.Moveset;
-	static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
-	static AudioClip GetSound(GameObject go) => go.GetComponent<AudioSource>().clip;
 
 	#endregion
 

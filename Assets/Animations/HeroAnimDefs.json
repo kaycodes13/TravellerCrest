@@ -26,30 +26,35 @@
 
 			{
 				"Name": "Slash_Charged",
-				"Fps": 18,
+				"Fps": 25,
 				"WrapMode": "Once",
-				"Triggers": [ 1, 6 ],
+				"Triggers": [ 1, 6, 11 ],
 				"Composite": [
 					{ "Start": 1, "End": 5, "Name": "ToolThrowAlt Q" },
-					{ "Start": 1, "End": 7, "Name": "ToolThrow Q" },
-					{ "Frame": 7, "Name": "ToolThrow Q" }
+					{ "Start": 1, "End": 5, "Name": "ToolThrow Q" },
+					{ "Start": 2, "End": 7, "Name": "ToolThrowAlt Q" }
 				]
 			},
 
 			{
-				"Name": "Slash_Charged Effect TEST",
-				"Fps": 15,
+				"Name": "Dash Attack Antic",
+				"Fps": 16,
 				"WrapMode": "Once",
-				"Triggers": [ 0, 19 ],
-				"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
+				"Triggers": [],
+				"Composite": [
+					{ "Frame": 7, "Name": "ToolThrowAlt Q" },
+					{ "Frame": 0, "Name": "ToolThrowAlt Q" }
+				]
 			},
 
 			{
-				"Name": "Dash Attack Effect TEST",
-				"Fps": 15,
+				"Name": "Dash Attack",
+				"Fps": 18,
 				"WrapMode": "Once",
-				"Triggers": [ 0, 19 ],
-				"Composite": [ { "Repeat": 5, "Name": "SlashEffect", "Crest": "Wanderer" } ]
+				"Triggers": [],
+				"Composite": [
+					{ "Start": 1, "End": 6, "Name": "ToolThrowAlt Q" }
+				]
 			}
 		]
 	}
