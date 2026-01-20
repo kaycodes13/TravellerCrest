@@ -61,12 +61,12 @@
       },
       "Silksong.FsmUtil": {
         "type": "Direct",
-        "requested": "[0.3.4, )",
-        "resolved": "0.3.4",
-        "contentHash": "miih0KIw5LyW59PvAnwaqBjX/rJwsEHHu1mRCa1rEUsKzfmN3aq63nmkhxI7yxUD/imTSOtlCSMVSeFHR6NQ8w==",
+        "requested": "[0.3.8, )",
+        "resolved": "0.3.8",
+        "contentHash": "C9AzL1z/51m6cOJEbeJN3KYKkUcrtZN3e3ANVGxwl0Whm84FvDBA2IHzBlWZZ1BYFAC9yDoWi7m5lFPYIiZO3w==",
         "dependencies": {
           "BepInEx.Core": "5.4.21",
-          "Silksong.GameLibs": "1.1.0-silksong1.0.28714",
+          "HarmonyX": "2.9.0",
           "UnityEngine.Modules": "6000.0.50"
         }
       },
