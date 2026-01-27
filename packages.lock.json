@@ -26,9 +26,9 @@
       },
       "Harmonize": {
         "type": "Direct",
-        "requested": "[1.0.4, )",
-        "resolved": "1.0.4",
-        "contentHash": "FKx02oXzLszicFUqLoGjL1aBKpRFV2xPVGH4gMR63RVIf169sboYSOl8KMLWOEHYQ1qOay+nMAikCHNc7ZWTog=="
+        "requested": "[1.0.6, )",
+        "resolved": "1.0.6",
+        "contentHash": "V5Y8evixyTU1MO0klQfV64vEwbMuitlNUEi3o/tvN/9PUS5Iitcn6RZxz3vW1MKfrywHayLR1jLxiL8TlaH5pQ=="
       },
       "HarmonyX": {
         "type": "Direct",
@@ -61,12 +61,12 @@
       },
       "Silksong.FsmUtil": {
         "type": "Direct",
-        "requested": "[0.3.4, )",
-        "resolved": "0.3.4",
-        "contentHash": "miih0KIw5LyW59PvAnwaqBjX/rJwsEHHu1mRCa1rEUsKzfmN3aq63nmkhxI7yxUD/imTSOtlCSMVSeFHR6NQ8w==",
+        "requested": "[0.3.12, )",
+        "resolved": "0.3.12",
+        "contentHash": "HGncQoo+xyiSrlwAVjJg0okj1uWJm5ibtWjMdkJNy+ew7mJ+mY2DNA3+5i6qIw5/8OwtONBL0ByvLTo+VDHRjg==",
         "dependencies": {
           "BepInEx.Core": "5.4.21",
-          "Silksong.GameLibs": "1.1.0-silksong1.0.28714",
+          "HarmonyX": "2.9.0",
           "UnityEngine.Modules": "6000.0.50"
         }
       },
