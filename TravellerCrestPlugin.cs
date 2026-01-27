@@ -16,7 +16,6 @@ TODO:
 
 - possibly a complex wall attack - designer still deciding
 - config menu (possibly with debug options to tweak heroconfig, etc)
-- bind anim should be flea brew drinking anim, disable silk effects if possible
 - playtesting, tweaking math
 
 TO RESEARCH:

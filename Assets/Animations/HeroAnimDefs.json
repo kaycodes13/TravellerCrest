@@ -2,6 +2,7 @@
 	{
 		"Name": "main",
 		"Anims": [
+
 			{ "Copy": { "Name": "Slash", "Crest": "Wanderer" } },
 			{ "Copy": { "Name": "SlashEffect", "Crest": "Wanderer" } },
 
@@ -16,11 +17,12 @@
 
 			{
 				"Name": "Slash_Charged Antic",
-				"Fps": 20,
+				"Fps": 10,
 				"WrapMode": "Once",
 				"Triggers": [],
 				"Composite": [
-					{ "Frame": 0, "Repeat": 4, "Name": "ToolThrowAlt Q" }
+					{ "Frame": 7, "Name": "ToolThrowAlt Q" },
+					{ "Frame": 0, "Name": "ToolThrowAlt Q" }
 				]
 			},
 
@@ -38,7 +40,7 @@
 
 			{
 				"Name": "Dash Attack Antic",
-				"Fps": 16,
+				"Fps": 15,
 				"WrapMode": "Once",
 				"Triggers": [],
 				"Composite": [
@@ -46,7 +48,6 @@
 					{ "Frame": 0, "Name": "ToolThrowAlt Q" }
 				]
 			},
-
 			{
 				"Name": "Dash Attack",
 				"Fps": 18,
@@ -54,6 +55,60 @@
 				"Triggers": [],
 				"Composite": [
 					{ "Start": 1, "End": 6, "Name": "ToolThrowAlt Q" }
+				]
+			},
+
+			{
+				"Name": "BindCharge Ground",
+				"Fps": 15,
+				"WrapMode": "LoopSection",
+				"LoopStart": 4,
+				"Triggers": [ 4 ],
+				"Composite": [
+					{ "Start": 0, "End": 6, "Name": "Charge Up" }
+				]
+			},
+			{
+				"Name": "Reserve BindCharge Ground",
+				"Fps": 15,
+				"WrapMode": "Once",
+				"Composite": [
+					{ "Start": 0, "End": 6, "Name": "Charge Up" }
+				]
+			},
+			{
+				"Name": "BindBurst Ground",
+				"Fps": 15,
+				"WrapMode": "Once",
+				"Composite": [
+					{ "Start": 7, "End": 9, "Name": "Charge Up" }
+				]
+			},
+
+			{
+				"Name": "BindCharge Air",
+				"Fps": 15,
+				"WrapMode": "LoopSection",
+				"LoopStart": 3,
+				"Triggers": [ 3 ],
+				"Composite": [
+					{ "Start": 0, "End": 5, "Name": "Charge Up Air" }
+				]
+			},
+			{
+				"Name": "Reserve BindCharge Air",
+				"Fps": 15,
+				"WrapMode": "Once",
+				"Composite": [
+					{ "Start": 0, "End": 5, "Name": "Charge Up Air" }
+				]
+			},
+			{
+				"Name": "BindBurst Air",
+				"Fps": 15,
+				"WrapMode": "Once",
+				"Composite": [
+					{ "Start": 6, "End": 8, "Name": "Charge Up Air" }
 				]
 			}
 		]

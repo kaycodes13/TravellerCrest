@@ -118,15 +118,15 @@ internal static class AnimationManager {
 	/// existing Hornet animation, which can convert itself to a <see cref="tk2dSpriteAnimationClip"/>.
 	/// </summary>
 	/// <param name="Name">A name for the new animation.</param>
+	/// <param name="Copy">An animation that will be copied exactly, including triggers.</param>
 	/// <param name="Triggers">List of frame indexes which should trigger an event.</param>
-	/// <param name="Copy">An animation that will be copied exactly, sans triggers.</param>
 	/// <param name="Composite">
 	///		A series of single frames, or ranges of frames, from one or more animations
 	///		which will be chained together to form the final animation.
 	///	</param>
 	[Serializable]
 	private record struct HeroAnimDef
-		(string Name, int Fps, WrapMode WrapMode, int[] Triggers,
+		(string Name, int Fps, WrapMode WrapMode, int LoopStart, int[] Triggers,
 		HeroFrameDef? Copy, HeroFrameDef[] Composite)
 		: IAnimDef {
 
@@ -165,13 +165,15 @@ internal static class AnimationManager {
 					for (int i = 0; i < repeats; i++)
 						frames.AddRange(sourceClip.frames[start..end].Select(CopyFrame));
 				}
-				foreach (int index in Triggers)
-					frames[index].triggerEvent = true;
+				if (Triggers != null)
+					foreach (int index in Triggers)
+						frames[index].triggerEvent = true;
 
 				return new() {
 					name = Name,
 					fps = Fps,
 					wrapMode = WrapMode,
+					loopStart = LoopStart,
 					frames = [.. frames]
 				};
 			}
