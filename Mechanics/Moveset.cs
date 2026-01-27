@@ -224,7 +224,7 @@ internal static class Moveset {
 		#endregion
 
 		// relinquish control, allow clawline cancels, etc
-		startState.AddLambdaMethod(finished => {
+		startState.AddMethod(() => {
 			fsm.GetBoolVariable("In Crest Attack").Value = true;
 			fsm.GetBoolVariable("Disabled Animation").Value = true;
 			bounceAtEnd.Value = false;
@@ -232,15 +232,13 @@ internal static class Moveset {
 			Hc.RelinquishControlNotVelocity();
 			Hc.QueueCancelDownAttack();
 			Hc.cState.isInCancelableFSMMove = true;
-			finished();
 		});
 		startState.AddTransition(FsmEvent.Finished.name, firstStepState.name);
 
 		// play first slash, reduce gravity
-		firstStepState.AddLambdaMethod(finished => {
+		firstStepState.AddMethod(() => {
 			Hc.cState.downAttacking = true;
 			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-			finished();
 		});
 		firstStepState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -262,11 +260,10 @@ internal static class Moveset {
 		AddDashCancel(firstStepState);
 
 		// if first step hits; stop downward movement and queue a bounce at the end
-		firstHitState.AddLambdaMethod(finished => {
+		firstHitState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = new(Hc.rb2d.linearVelocity.x, 20f);
 			Hc.StartDownspikeInvulnerabilityLong();
 			bounceAtEnd.Value = true;
-			finished();
 		});
 		firstHitState.AddAction(new Tk2dWatchAnimationEvents {
 			gameObject = ownerHornet,
@@ -288,9 +285,8 @@ internal static class Moveset {
 		AddDashCancel(delayState);
 
 		// perform the second slash, reduce gravity again
-		secondStepState.AddLambdaMethod(finished => {
+		secondStepState.AddMethod(() => {
 			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-			finished();
 		});
 		secondStepState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -316,27 +312,24 @@ internal static class Moveset {
 			boolVariable = bounceAtEnd,
 			isTrue = bounceAnywayEvent
 		});
-		missState.AddLambdaMethod(finished => {
+		missState.AddMethod(() => {
 			Hc.cState.downAttacking = false;
 			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.FinishDownspike(true);
-			finished();
 		});
 		missState.AddTransition(bounceAnywayEvent.name, bounceState.name);
 
 		// perform a bounce because something was pogo'd upon
-		bounceState.AddLambdaMethod(finished => {
+		bounceState.AddMethod(() => {
 			Hc.cState.downAttacking = false;
 			Hc.SetStartWithDownSpikeBounce();
-			finished();
 		});
 
 		// if a dash input happens at any point, cancel the entire attack
-		dashCancelState.AddLambdaMethod(finished => {
+		dashCancelState.AddMethod(() => {
 			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
 			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
 			Hc.SetStartWithDash();
-			finished();
 		});
 
 		endStates = [missState, bounceState, dashCancelState];
@@ -385,6 +378,9 @@ internal static class Moveset {
 		static void SetDashAttackSound() {
 			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
 			Moves.DashSlash!.Steps[0].Sound = GetSound(shaman.NormalSlashObject);
+			//Moves.DashSlash!.Steps[0].Sound = shaman.ChargeSlash
+			//	.GetComponent<PlayRandomAudioEvent>().audioEvent.Clips
+			//	.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
 		}
 	}
 
@@ -397,10 +393,9 @@ internal static class Moveset {
 			endState = fsm.AddState($"{SifId} End");
 
 		// Play antic, slow down, relinquishing control stuff
-		startState.AddLambdaMethod(finished => {
+		startState.AddMethod(() => {
 			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
 			Hc.SetAllowRecoilWhileRelinquished(true);
-			finished();
 		});
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -417,11 +412,10 @@ internal static class Moveset {
 		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
 
 		// Play anim attack and audio, start attack, disable gravity, leap back
-		slashState.AddLambdaMethod(finished => {
+		slashState.AddMethod(() => {
 			Hc.cState.onGround = false;
 			Hc.AffectedByGravity(false);
 			Moves.DashSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-			finished();
 		});
 		slashState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -444,12 +438,11 @@ internal static class Moveset {
 		slashState.AddTransition(FsmEvent.Finished.name, endState.name);
 
 		// re-enable gravity, set attack cooldown, etc
-		endState.AddLambdaMethod(finished => {
+		endState.AddMethod(() => {
 			Hc.SetStartFromReaperUpperslash();
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
-			finished();
 		});
 
 		endStates = [endState];
@@ -468,7 +461,6 @@ internal static class Moveset {
 			Name = "Charged",
 			PlayOnActivation = false,
 			PlayStepsInSequence = false,
-			CameraShakeProfiles = [Camera.TinyShake, Camera.EnemyKillShake],
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
 				new ChargeAttackStepPositionable {
@@ -510,9 +502,11 @@ internal static class Moveset {
 		};
 		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.MainLib);
 
-		Moves.OnInitialized += SetChargedAttackSounds;
+		Moves.OnInitialized += SetChargedAttackSoundsAndShakes;
 
-		static void SetChargedAttackSounds() {
+		static void SetChargedAttackSoundsAndShakes() {
+			Moves.ChargedSlash!.CameraShakeProfiles = [Camera.TinyShake, Camera.EnemyKillShake];
+
 			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
 			var sound = shaman.ChargeSlash.GetComponent<PlayRandomAudioEvent>().audioEvent
 				.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");

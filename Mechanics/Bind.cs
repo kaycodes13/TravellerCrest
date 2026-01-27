@@ -71,36 +71,38 @@ internal static class Bind {
 		PlayMakerFSM fsm = __instance.gameObject.GetFsmPreprocessed("Bind")!;
 
 		FsmBool
-			addingLifeblood = fsm.GetBoolVariable(ADDING_LIFEBLOOD_VARNAME);
+			addingLifeblood = fsm.GetBoolVariable(ADDING_LIFEBLOOD_VARNAME),
+			isFirstLoop = fsm.FindBoolVariable("Is First Loop")!;
 		FsmGameObject
 			spawnedFlash = fsm.GetGameObjectVariable(SPAWNED_FLASH_VARNAME),
 			spawnedBubbles = fsm.GetGameObjectVariable(SPAWNED_BUBBLES_VARNAME);
 		FsmInt
-			numBinds = fsm.FindIntVariable("Bind Amount")!;
+			numBinds = fsm.FindIntVariable("Bind Amount")!,
+			masks = fsm.FindIntVariable("Heal Amount")!;
 
 		// Silk effects are now flea brew bubbles, recoloured according to whether
 		// we're adding lifeblood or healing masks
 
-		fsm.GetState("Bind Ground")!.AddLambdaMethod(ReplaceSilkEffects);
-		fsm.GetState("Bind Air")!.AddLambdaMethod(ReplaceSilkEffects);
+		fsm.GetState("Bind Ground")!.AddMethod(ReplaceSilkEffects);
+		fsm.GetState("Bind Air")!.AddMethod(ReplaceSilkEffects);
 
-		void ReplaceSilkEffects(Action finished) {
+		void ReplaceSilkEffects() {
 			addingLifeblood.Value = SifCrest.IsEquipped && PlayerData.instance.healthBlue < 2;
 
-			if (SifCrest.IsEquipped) {
-				__instance.transform
-					.Find("Bind Effects/Bind Silk").gameObject
-					.SetActive(false);
+			if (!SifCrest.IsEquipped)
+				return;
 
-				GameObject? bubblePrefab = addingLifeblood.Value
-					? BubbleBluePrefab : BubbleWhitePrefab;
+			__instance.transform
+				.Find("Bind Effects/Bind Silk").gameObject
+				.SetActive(false);
 
-				if (spawnedBubbles.Value)
-					spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
+			GameObject? bubblePrefab = addingLifeblood.Value
+				? BubbleBluePrefab : BubbleWhitePrefab;
 
-				spawnedBubbles.Value = SpawnBubbles(bubblePrefab!, __instance.gameObject);
-			}
-			finished();
+			if (spawnedBubbles.Value)
+				spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
+
+			spawnedBubbles.Value = SpawnBubbles(bubblePrefab!, __instance.gameObject);
 		}
 
 		// Healing stops the bubble effect, throw an empty bottle on the last bind,
@@ -116,29 +118,27 @@ internal static class Bind {
 					&& action.methodName.Value == nameof(HeroController.AddHealth)
 			);
 
-		healState.InsertLambdaMethod(healIndex, finished => {
-			if (SifCrest.IsEquipped) {
-				FsmInt masks = fsm.GetIntVariable("Heal Amount");
-				FsmBool isFirstLoop = fsm.GetBoolVariable("Is First Loop");
-				int healthBlue = PlayerData.instance.healthBlue;
+		healState.InsertMethod(healIndex, () => {
+			if (!SifCrest.IsEquipped)
+				return;
 
-				if (addingLifeblood.Value) {
-					masks.Value = 0;
-					GameManager.instance.QueuedBlueHealth = 2 - healthBlue;
-					EventRegister.SendEvent(EventRegisterEvents.AddQueuedBlueHealth);
-					__instance.SpriteFlash.flashHealBlue();
-				}
-				else if (isFirstLoop.Value)
-					masks.Value = 2;
-				else
-					masks.Value = 1;
+			int healthBlue = PlayerData.instance.healthBlue;
 
-				spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
-
-				if(numBinds.Value <= 1)
-					ThrowTonicBottle();
+			if (addingLifeblood.Value) {
+				masks.Value = 0;
+				GameManager.instance.QueuedBlueHealth = 2 - healthBlue;
+				EventRegister.SendEvent(EventRegisterEvents.AddQueuedBlueHealth);
+				__instance.SpriteFlash.flashHealBlue();
 			}
-			finished();
+			else if (isFirstLoop.Value)
+				masks.Value = 2;
+			else
+				masks.Value = 1;
+
+			spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
+
+			if(numBinds.Value <= 1)
+				ThrowTonicBottle();
 		});
 
 		// The screen flash after binding should be lifeblood blue if we healed lifeblood.
@@ -153,15 +153,13 @@ internal static class Bind {
 		healState.GetAction<SpawnObjectFromGlobalPool>(flashSpawnIndex)!
 			.storeObject = spawnedFlash;
 
-		healState.InsertLambdaMethod(flashSpawnIndex + 1, finished => {
+		healState.InsertMethod(flashSpawnIndex + 1, () => {
 			var fader = spawnedFlash.Value.GetComponent<SimpleSpriteFade>();
 			Color colour = (SifCrest.IsEquipped && addingLifeblood.Value)
 				? blueFlash : Color.white;
 			fader.fadeInColor = colour with { a = fader.fadeInColor.a };
 			fader.normalColor = colour with { a = fader.normalColor.a };
-			finished();
 		});
-
 	}
 
 
