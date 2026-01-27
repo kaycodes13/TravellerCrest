@@ -2,7 +2,7 @@
 using System.Linq;
 using UnityEngine;
 
-namespace TravellerCrest.Utils;
+namespace TravellerCrest.Components;
 
 #if DEBUG
 /// <summary>

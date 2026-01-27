@@ -15,13 +15,13 @@ internal static class LowHPToolDamageBonus {
 	// 0.53 gives a maximum bonus of 1.5x at 9 masks missing - similar to hunter crest bonus
 	private const float DAMAGE_SCALING = 0.53f;
 
-	private static float ToolDamageBonus() {
-		int masksMissing = PlayerData.instance.maxHealth - PlayerData.instance.health;
-		return 1 + DAMAGE_SCALING * Mathf.Sqrt(masksMissing / 10f);
+	private static float CurrentBonus() {
+		int missing = PlayerData.instance.maxHealth - PlayerData.instance.health;
+		return 1 + DAMAGE_SCALING * Mathf.Sqrt(missing / 10f);
 	}
 
 	private static int ApplyBonusToDamage(int damage)
-		=> Mathf.FloorToInt(damage * ToolDamageBonus());
+		=> Mathf.FloorToInt(damage * CurrentBonus());
 
 	[HarmonyPatch(typeof(DamageEnemies), nameof(DamageEnemies.DoDamage), [typeof(GameObject), typeof(bool)])]
 	[HarmonyTranspiler]
@@ -67,7 +67,7 @@ internal static class LowHPToolDamageBonus {
 
 		static float ApplyBonus(float multiplier, DamageEnemies instance) {
 			if (SifCrest.IsEquipped && (instance.isHeroDamage || instance.sourceIsHero)) 
-				return multiplier * ToolDamageBonus();
+				return multiplier * CurrentBonus();
 			return multiplier;
 		}
 	}

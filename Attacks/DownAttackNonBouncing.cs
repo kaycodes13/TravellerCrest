@@ -3,9 +3,11 @@ using Silksong.UnityHelper.Extensions;
 using System.Linq;
 using TeamCherry.SharedUtils;
 
-namespace TravellerCrest.Data;
+namespace TravellerCrest.Attacks;
 
-internal class NonBouncingDownAttack : DownAttack {
+internal class DownAttackNonBouncing : DownAttack {
+	public TransformProxy? Transform { get; set; }
+
 	private NailSlash? ns;
 	private PlayMakerFSM? reactionFsm;
 	protected override NailAttackBase? NailAttack => ns;
@@ -14,6 +16,7 @@ internal class NonBouncingDownAttack : DownAttack {
 		reactionFsm = GameObject!.AddComponent<PlayMakerFSM>();
 	}
 	protected override void LateInitializeComponents(HeroController hc) {
+		Transform?.Initialize(GameObject!);
 		ns!.animName = AnimName;
 		Damager!.corpseDirection = new OverrideFloat {
 			IsEnabled = true,
