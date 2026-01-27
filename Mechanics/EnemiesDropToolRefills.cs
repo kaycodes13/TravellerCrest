@@ -11,12 +11,12 @@ namespace TravellerCrest.Mechanics;
 [HarmonyPatch]
 internal static class EnemiesDropToolRefills {
 
-	private const float DROP_RATE_NORMAL = 0.10f;
-	private const float DROP_RATE_SNITCH_PICK = 0.10f;
+	private static float DROP_RATE_NORMAL => Playtesting.dropRateNormal.Value;
+	private static float DROP_RATE_SNITCH_PICK => Playtesting.dropRateSnitch.Value;
 
-	private const float DROP_RATE_DICE_BONUS = 1.10f;
+	private static float DROP_RATE_DICE_BONUS => Playtesting.dropRateDiceBonus.Value;
 
-	private const float REFILL_PERCENT = 0.10f;
+	private static float REFILL_PERCENT => Playtesting.percentToolsRefilled.Value;
 
 
 	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]

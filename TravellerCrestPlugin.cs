@@ -1,4 +1,5 @@
 using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using Needleforge;
@@ -7,6 +8,8 @@ using TeamCherry.Localization;
 using TravellerCrest.Mechanics;
 using TravellerCrest.Utils;
 using UnityEngine;
+using Silksong.ModMenu.Plugin;
+using Silksong.ModMenu.Screens;
 
 namespace TravellerCrest;
 
@@ -29,8 +32,9 @@ TO RESEARCH:
 [BepInDependency("org.silksong-modding.fsmutil", "0.3.12")]
 [BepInDependency("org.silksong-modding.unityhelper", "1.1.1")]
 [BepInDependency("io.github.needleforge", "0.8.0")]
+[BepInDependency("org.silksong-modding.modmenu", "0.2.0")]
 [BepInIncompatibility("com.cometcake575.architect")]
-public partial class TravellerCrestPlugin : BaseUnityPlugin {
+public partial class TravellerCrestPlugin : BaseUnityPlugin, IModMenuCustomMenu {
 
 	private Harmony Harmony { get; } = new(Id);
 	internal static ManualLogSource Log { get; private set; }
@@ -51,6 +55,7 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 
 	private void Awake() {
 		Log = Logger;
+		Playtesting = new(this);
 
 		Harmony.PatchAll();
 
@@ -90,4 +95,9 @@ public partial class TravellerCrestPlugin : BaseUnityPlugin {
 		Logger.LogInfo($"Plugin {Name} ({Id}) has loaded!");
 	}
 
+	internal static Settings Playtesting { get; private set; }
+
+	public string ModMenuName() => Info.Metadata.Name.Replace('_', ' ');
+
+	public AbstractMenuScreen BuildCustomMenu() => Playtesting.BuildMenu();
 }

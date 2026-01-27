@@ -14,7 +14,8 @@ namespace TravellerCrest.Mechanics;
 internal static class Moveset {
 
 	private const float STUN_DAMAGE = 0.8f;
-	private const float DOWN_ATTACK_GAP = 0.01f;
+	private static float DOWN_ATTACK_GAP => Playtesting.downAttackTimeGap.Value;
+	private static float DOWN_ATTACK_FIRST_HIT_YVEL => Playtesting.downAttackHitVel.Value;
 
 	private static readonly Vector2[] JUST_ATTACK_HITBOX = [
 		new(-2f, 0.1f),
@@ -261,7 +262,7 @@ internal static class Moveset {
 
 		// if first step hits; stop downward movement and queue a bounce at the end
 		firstHitState.AddMethod(() => {
-			Hc.rb2d.linearVelocity = new(Hc.rb2d.linearVelocity.x, 20f);
+			Hc.rb2d.linearVelocity = new(Hc.rb2d.linearVelocity.x, DOWN_ATTACK_FIRST_HIT_YVEL);
 			Hc.StartDownspikeInvulnerabilityLong();
 			bounceAtEnd.Value = true;
 		});
@@ -273,11 +274,12 @@ internal static class Moveset {
 		AddDashCancel(firstHitState);
 
 		// wait a configurable amount of time between steps
+		delayState.AddMethod(() => delay.Value = DOWN_ATTACK_GAP);
 		delayState.AddActions(
-			new SetFloatValue {
-				floatVariable = delay,
-				floatValue = DOWN_ATTACK_GAP,
-			},
+			//new SetFloatValue {
+			//	floatVariable = delay,
+			//	floatValue = DOWN_ATTACK_GAP,
+			//},
 			new Wait { time = delay, }
 		);
 		delayState.AddTransition(FsmEvent.Finished.name, secondStepState.name);
