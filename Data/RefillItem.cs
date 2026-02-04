@@ -22,5 +22,5 @@ internal class RefillItem : SavedItem {
 
 	public override Sprite GetPopupIcon() => tool.GetPopupIcon();
 
-	public override string GetPopupName() => tool.GetPopupName();
+	public override string GetPopupName() => $"{tool.GetPopupName()} ({amountRefunded})";
 }
