@@ -99,11 +99,12 @@ internal static class Bind {
 			GameObject? bubblePrefab = addingLifeblood.Value
 				? BubbleBluePrefab : BubbleWhitePrefab;
 
-			if (spawnedBubbles.Value)
-				spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
-
+			StopBubbles(spawnedBubbles.Value);
 			spawnedBubbles.Value = SpawnBubbles(bubblePrefab!, __instance.gameObject);
 		}
+
+		// Any form of bind cancelling also cancels bubbles
+		fsm.GetState("Cancel All")!.InsertMethod(0, () => StopBubbles(spawnedBubbles.Value));
 
 		// Healing stops the bubble effect, throw an empty bottle on the last bind,
 		// and heals different amount of lifeblood/masks depending on how many binds are
@@ -135,7 +136,7 @@ internal static class Bind {
 			else
 				masks.Value = 1;
 
-			spawnedBubbles.Value.GetComponent<PlayParticleEffects>().StopParticleSystems();
+			StopBubbles(spawnedBubbles.Value);
 
 			if(numBinds.Value <= 1)
 				ThrowTonicBottle();
@@ -197,6 +198,14 @@ internal static class Bind {
 		bubbles.transform.SetLocalPosition2D(Vector2.zero);
 		bubbles.PlayParticleSystems();
 		return bubbles.gameObject;
+	}
+
+	/// <summary>
+	/// Ends the particle systems of a GameObject with a PlayParticleEffects component.
+	/// </summary>
+	private static void StopBubbles(GameObject? go) {
+		if (go && go.TryGetComponent<PlayParticleEffects>(out var ppe))
+			ppe.StopParticleSystems();
 	}
 
 	/// <summary>
