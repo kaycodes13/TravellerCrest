@@ -495,7 +495,7 @@ internal static class Moveset {
 						Position = new(-5.5f, 0, 0),
 					},
 					Scale = new(-1, 1),
-					KnockbackMult = 0.8f,
+					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
 			]
