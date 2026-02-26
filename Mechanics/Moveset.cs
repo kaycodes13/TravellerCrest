@@ -147,7 +147,7 @@ internal static class Moveset {
 		);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		Moves.DownSlash = new DownAttackNonBouncing {
+		Moves.DownSlash = new DownAttackPositionable {
 			Name = "Down",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "DownSlashEffect",
@@ -168,7 +168,7 @@ internal static class Moveset {
 			KnockbackMult = 0.5f,
 			DamageMult = 0.55f,
 		};
-		Moves.AltDownSlash = new DownAttackNonBouncing {
+		Moves.AltDownSlash = new DownAttackPositionable {
 			Name = "DownAlt",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "DownSlashEffect",
