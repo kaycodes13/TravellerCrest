@@ -495,7 +495,7 @@ internal static class Moveset {
 						Position = new(-5.5f, 0, 0),
 					},
 					Scale = new(-1, 1),
-					KnockbackMult = 0.8f,
+					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
 			]
@@ -542,6 +542,10 @@ internal static class Moveset {
 			stepThreeState = fsm.AddState($"{SifId} Attack Step 3"),
 			recoveryState = fsm.AddState($"{SifId} Recovery");
 
+		fsm.GetState("Cancel All")!.AddMethod(() =>
+			HeroController.instance.AllowRecoil()
+		);
+
 		// Play hornet antic anim, decelerate
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -564,6 +568,11 @@ internal static class Moveset {
 		startState.AddTransition(FsmEvent.Finished.name, beginAttackState.name);
 
 		// Play hornet attack anim, start first step on the first anim trigger
+		beginAttackState.AddMethod(() =>
+			HeroController.instance.PreventRecoil(
+				AnimationManager.MainLib.GetClipByName("Slash_Charged").Duration
+			)
+		);
 		beginAttackState.AddActions(
 			new SetBoolValue {
 				boolVariable = fsm.GetBoolVariable("Is Anim Finished"),
