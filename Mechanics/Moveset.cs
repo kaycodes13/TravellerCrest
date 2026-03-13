@@ -150,24 +150,16 @@ internal static class Moveset {
 		Moves.DownSlash = new DownAttackTravelling {
 			Name = "Down",
 			AnimLibrary = AnimationManager.MainLib,
-			AnimName = "DownSlashEffect",
-			Hitbox = [
-				new(2.19f, -0.24f),
-				new(2.07f, -1.49f),
-				new(1.23f, -2.15f),
-				new(0.16f, -2.44f),
-				new(-1.23f, -2.23f),
-				new(-1.82f, -1.59f),
-				new(-1.84f, -0.25f),
-			],
-			Scale = new(-0.8f, 1f),
+			AnimName = "Slash_Charged Effect",
+			Hitbox = JUST_ATTACK_HITBOX,
 			Transform = new() {
-				Position = new(0.05f, -0.15f)
+				Position = new(0.05f, -0.15f),
+				Rotation = Quaternion.Euler(0, 0, 40),
 			},
 			Travel = new() {
 				RecoilDistance = 1,
-				Distance = new(-1.18f, -3.45f),
-				Duration = 0.2f,
+				Distance = new(-0.75f, -3f),
+				Duration = 0.25f,
 				Curve = new(
 					new Keyframe(0, 0, 1.82f, 1.82f),
 					new Keyframe(1, 1, 0.46f, 0.46f)
