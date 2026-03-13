@@ -11,8 +11,7 @@
 
 			{ "Copy": { "Name": "UpSlash", "Crest": "Wanderer" } },
 
-			{ "Copy": { "Name": "DownSlash", "Crest": "Wanderer" } },
-			{ "Copy": { "Name": "DownSlashAlt", "Crest": "Wanderer" } },
+			{ "Copy": { "Name": "DownSlash", "Crest": "Spell" } },
 			{ "Copy": { "Name": "DownSlashEffect", "Crest": "Wanderer" } },
 
 			{
