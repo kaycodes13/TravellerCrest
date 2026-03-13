@@ -112,12 +112,10 @@ internal static class Bind {
 
 		FsmState healState = fsm.GetState("Heal")!;
 
-		int healIndex =
-			Array.FindIndex(
-				healState.Actions,
-				x => x is CallMethodProper action
-					&& action.methodName.Value == nameof(HeroController.AddHealth)
-			);
+		int healIndex = healState.IndexFirstActionMatching(
+			x => x is CallMethodProper action
+				&& action.methodName.Value == nameof(HeroController.AddHealth)
+		);
 
 		healState.InsertMethod(healIndex, () => {
 			if (!SifCrest.IsEquipped)
@@ -144,12 +142,10 @@ internal static class Bind {
 
 		// The screen flash after binding should be lifeblood blue if we healed lifeblood.
 
-		int flashSpawnIndex =
-			Array.FindIndex(
-				healState.Actions,
-				x => x is SpawnObjectFromGlobalPool action
-					&& action.gameObject.Value.name.Contains("White Flash")
-			);
+		int flashSpawnIndex = healState.IndexFirstActionMatching(
+			x => x is SpawnObjectFromGlobalPool action
+				&& action.gameObject.Value.name.Contains("White Flash")
+		);
 
 		healState.GetAction<SpawnObjectFromGlobalPool>(flashSpawnIndex)!
 			.storeObject = spawnedFlash;
@@ -237,11 +233,8 @@ internal static class Bind {
 	/// Recolours all particle systems on all descendants of the given GameObject.
 	/// </summary>
 	private static GameObject RecolourParticles(GameObject go, Color colour) {
-
-		var descendants = Descendants(go);
-
-		while (descendants.MoveNext()) {
-			if (!descendants.Current.TryGetComponent<ParticleSystem>(out var partSystem))
+		foreach(Transform t in Descendants(go)) {
+			if (!t.TryGetComponent<ParticleSystem>(out var partSystem))
 				continue;
 
 			var colourModule = partSystem.colorOverLifetime;
@@ -259,19 +252,17 @@ internal static class Bind {
 					colourModule.color.gradient.alphaKeys
 				);
 		}
-
 		return go;
 	}
 
 	/// <summary>
 	/// Enumerates all the descendants of a GameObject.
 	/// </summary>
-	private static IEnumerator<Transform> Descendants(GameObject go) {
+	private static IEnumerable<Transform> Descendants(GameObject go) {
 		foreach (Transform t in go.transform) {
 			yield return t;
-			var descendants = Descendants(t.gameObject);
-			while (descendants.MoveNext())
-				yield return descendants.Current;
+			foreach (Transform descendant in Descendants(t.gameObject))
+				yield return descendant;
 		}
 	}
 
