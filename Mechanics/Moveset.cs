@@ -3,6 +3,7 @@ using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
 using Silksong.FsmUtil;
+using System;
 using System.Linq;
 using TravellerCrest.Attacks;
 using TravellerCrest.Data;
@@ -140,14 +141,10 @@ internal static class Moveset {
 	#region Down Slash
 
 	private static void DownSlash() {
-		Config.SetDownspikeFields(
-			anticTime: 0.09f,
-			time: 0.16f,
-			recoveryTime: 0.24f
-		);
+		Config.SetDownspikeFields(recoveryTime: 0.24f);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		Moves.DownSlash = new DownAttackTravelling {
+		Moves.DownSlash = new DownAttackStationary {
 			Name = "Down",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "Slash_Charged Effect",
@@ -156,15 +153,6 @@ internal static class Moveset {
 				Position = new(0.05f, -0.15f),
 				Rotation = Quaternion.Euler(0, 0, 40),
 			},
-			Travel = new() {
-				RecoilDistance = 1,
-				Distance = new(-0.75f, -3f),
-				Duration = 0.25f,
-				Curve = new(
-					new Keyframe(0, 0, 1.82f, 1.82f),
-					new Keyframe(1, 1, 0.46f, 0.46f)
-				),
-			}
 		};
 
 		Moves.OnInitialized += SetDownAttackSounds;
@@ -177,7 +165,7 @@ internal static class Moveset {
 
 	private static void DownslashEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault
-			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner };
+			ownerHornet = new();
 		FsmEvent
 			dashEvent = FsmEvent.GetFsmEvent("SPRINT");
 		FsmState
@@ -187,7 +175,6 @@ internal static class Moveset {
 			dashCancelState = fsm.AddState($"{SifId} Dash Cancel");
 
 		// ANTIC
-		// relinquish control, allow clawline cancels, play animation, etc
 		startState.AddMethod(() => {
 			fsm.GetBoolVariable("Disabled Animation").Value = true;
 			fsm.GetBoolVariable("In Crest Attack").Value = true;
@@ -196,7 +183,11 @@ internal static class Moveset {
 			Hc.AffectedByGravity(false);
 			Hc.QueueCancelDownAttack();
 			Hc.cState.isInCancelableFSMMove = true;
-			Hc.rb2d.linearVelocityY = Mathf.Max(0, Hc.rb2d.linearVelocityY);
+
+			// Clamp out "downward" velocity in a way compatible with Glissando
+			Func<float, float, float>
+				clampFn = Hc.transform.localScale.y > 0 ? Mathf.Max : Mathf.Min;
+			Hc.rb2d.linearVelocityY = clampFn(0, Hc.rb2d.linearVelocityY);
 		});
 		startState.AddActions([
 			new DecelerateXY {
@@ -223,8 +214,8 @@ internal static class Moveset {
 		slashState.AddActions(
 			new SetVelocityByScale {
 				gameObject = ownerHornet,
-				speed = 10,
-				ySpeed = 12,
+				speed = 8,
+				ySpeed = 14,
 			},
 			new DecelerateXY {
 				gameObject = ownerHornet,
