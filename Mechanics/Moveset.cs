@@ -3,6 +3,7 @@ using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
 using Silksong.FsmUtil;
+using System;
 using System.Linq;
 using TravellerCrest.Attacks;
 using TravellerCrest.Data;
@@ -140,199 +141,119 @@ internal static class Moveset {
 	#region Down Slash
 
 	private static void DownSlash() {
-		Config.SetDownspikeFields(
-			anticTime: 0.09f,
-			time: 0.16f,
-			recoveryTime: 0.24f
-		);
+		Config.SetDownspikeFields(recoveryTime: 0.24f);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		Moves.DownSlash = new DownAttackPositionable {
+		Moves.DownSlash = new DownAttackStationary {
 			Name = "Down",
 			AnimLibrary = AnimationManager.MainLib,
-			AnimName = "DownSlashEffect",
-			Hitbox = [
-				new(2.19f, -0.24f),
-				new(2.07f, -1.49f),
-				new(1.23f, -2.15f),
-				new(0.16f, -2.44f),
-				new(-1.23f, -2.23f),
-				new(-1.82f, -1.59f),
-				new(-1.84f, -0.25f),
-			],
-			Scale = new(-0.8f, 1f),
+			AnimName = "Slash_Charged Effect",
+			Hitbox = JUST_ATTACK_HITBOX,
 			Transform = new() {
-				Position = new(0.05f, -0.15f)
+				Position = new(0.05f, -0.15f),
+				Rotation = Quaternion.Euler(0, 0, 40),
 			},
-			StunDamage = STUN_DAMAGE / 2f,
-			KnockbackMult = 0.5f,
-			DamageMult = 0.55f,
-		};
-		Moves.AltDownSlash = new DownAttackPositionable {
-			Name = "DownAlt",
-			AnimLibrary = AnimationManager.MainLib,
-			AnimName = "DownSlashEffect",
-			Hitbox = [
-				new(2.19f, -0.24f),
-				new(2.07f, -1.49f),
-				new(1.23f, -2.15f),
-				new(0.16f, -2.44f),
-				new(-1.23f, -2.23f),
-				new(-1.82f, -1.59f),
-				new(-1.84f, -0.25f),
-			],
-			Scale = new(0.8f, 1f),
-			Transform = new() {
-				Position = new(-0.03f, -0.15f)
-			},
-			StunDamage = STUN_DAMAGE / 2f,
-			DamageMult = 0.55f,
 		};
 
 		Moves.OnInitialized += SetDownAttackSounds;
 
 		static void SetDownAttackSounds() {
-			var wanderer = Hc.configs.First(x => x.Config.name == "Wanderer");
-			Moves.DownSlash!.Sound = GetSound(wanderer.DownSlashObject);
-			Moves.AltDownSlash!.Sound = GetSound(wanderer.AltDownSlashObject);
+			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
+			Moves.DownSlash!.Sound = GetSound(shaman.DownSlashObject);
 		}
 	}
 
 	private static void DownslashEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
-		#region Defining states/variables/events/etc
 		FsmOwnerDefault
-			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner };
-		FsmFloat
-			delay = fsm.GetFloatVariable($"{SifId} Delay");
-		FsmBool
-			bounceAtEnd = fsm.GetBoolVariable($"{SifId} Do Bounce");
+			ownerHornet = new();
 		FsmEvent
-			dashEvent = FsmEvent.GetFsmEvent("SPRINT"),
-			bounceAnywayEvent = FsmEvent.GetFsmEvent("BOUNCE ANYWAY"),
-			attackLandedEvent = FsmEvent.FindEvent("ATTACK LANDED"),
-			bounceTinkedEvent = FsmEvent.FindEvent("BOUNCE TINKED"),
-			bounceCancelEvent = FsmEvent.FindEvent("BOUNCE CANCEL"),
-			leavingSceneEvent = FsmEvent.FindEvent("LEAVING SCENE");
+			dashEvent = FsmEvent.GetFsmEvent("SPRINT");
 		FsmState
-			firstStepState = fsm.AddState($"{SifId} Step 1"),
-			delayState = fsm.AddState($"{SifId} Step Gap"),
-			firstHitState = fsm.AddState($"{SifId} Step 1 Hit"),
-			secondStepState = fsm.AddState($"{SifId} Step 2"),
+			slashState = fsm.AddState($"{SifId} Downslash"),
 			missState = fsm.AddState($"{SifId} End"),
 			bounceState = fsm.AddState($"{SifId} Bounce"),
 			dashCancelState = fsm.AddState($"{SifId} Dash Cancel");
-		#endregion
 
-		// relinquish control, allow clawline cancels, etc
+		// ANTIC
 		startState.AddMethod(() => {
-			fsm.GetBoolVariable("In Crest Attack").Value = true;
 			fsm.GetBoolVariable("Disabled Animation").Value = true;
-			bounceAtEnd.Value = false;
+			fsm.GetBoolVariable("In Crest Attack").Value = true;
 			Hc.StopAnimationControl();
 			Hc.RelinquishControlNotVelocity();
+			Hc.AffectedByGravity(false);
 			Hc.QueueCancelDownAttack();
 			Hc.cState.isInCancelableFSMMove = true;
-		});
-		startState.AddTransition(FsmEvent.Finished.name, firstStepState.name);
 
-		// play first slash, reduce gravity
-		firstStepState.AddMethod(() => {
-			Hc.cState.downAttacking = true;
-			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			// Clamp out "downward" velocity in a way compatible with Glissando
+			Func<float, float, float>
+				clampFn = Hc.transform.localScale.y > 0 ? Mathf.Max : Mathf.Min;
+			Hc.rb2d.linearVelocityY = clampFn(0, Hc.rb2d.linearVelocityY);
 		});
-		firstStepState.AddActions(
+		startState.AddActions([
+			new DecelerateXY {
+				gameObject = ownerHornet,
+				decelerationX = 0.9f,
+				decelerationY = 0.7f,
+			},
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
 				clipName = "DownSlash",
-				animationCompleteEvent = FsmEvent.Finished,
+				animationTriggerEvent = FsmEvent.Finished,
 			},
-			new DecelerateV2 {
+		]);
+		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
+		AddDashCancel(startState);
+
+		// DOWNSLASH
+		// fire the attack, move hornet up and back
+		slashState.AddMethod(() => {
+			Hc.AffectedByGravity(true);
+			Hc.cState.downAttacking = true;
+			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+		});
+		slashState.AddActions(
+			new SetVelocityByScale {
 				gameObject = ownerHornet,
-				deceleration = 0.78f,
-				brakeOnExit = false,
+				speed = 8,
+				ySpeed = 14,
+			},
+			new DecelerateXY {
+				gameObject = ownerHornet,
+				decelerationX = 0.9f,
+				decelerationY = 1,
+			},
+			new Tk2dWatchAnimationEvents {
+				gameObject = ownerHornet,
+				animationCompleteEvent = FsmEvent.Finished,
 			}
 		);
-		firstStepState.AddTransition(FsmEvent.Finished.name, delayState.name);
-		firstStepState.AddTransition(attackLandedEvent.name, firstHitState.name);
-		firstStepState.AddTransition(bounceTinkedEvent.name, firstHitState.name);
-		firstStepState.AddTransition(bounceCancelEvent.name, firstHitState.name);
-		firstStepState.AddTransition(leavingSceneEvent.name, missState.name);
-		AddDashCancel(firstStepState);
+		slashState.AddTransition("ATTACK LANDED", bounceState.name);
+		slashState.AddTransition("BOUNCE TINKED", bounceState.name);
+		slashState.AddTransition("BOUNCE CANCEL", bounceState.name);
+		slashState.AddTransition("LEAVING SCENE", missState.name);
+		slashState.AddTransition(FsmEvent.Finished.name, missState.name);
+		AddDashCancel(slashState);
 
-		// if first step hits; stop downward movement and queue a bounce at the end
-		firstHitState.AddMethod(() => {
-			Hc.rb2d.linearVelocity = new(Hc.rb2d.linearVelocity.x, 20f);
-			Hc.StartDownspikeInvulnerabilityLong();
-			bounceAtEnd.Value = true;
-		});
-		firstHitState.AddAction(new Tk2dWatchAnimationEvents {
-			gameObject = ownerHornet,
-			animationCompleteEvent = FsmEvent.Finished,
-		});
-		firstHitState.AddTransition(FsmEvent.Finished.name, delayState.name);
-		AddDashCancel(firstHitState);
-
-		// wait a configurable amount of time between steps
-		delayState.AddActions(
-			new SetFloatValue {
-				floatVariable = delay,
-				floatValue = DOWN_ATTACK_GAP,
-			},
-			new Wait { time = delay, }
-		);
-		delayState.AddTransition(FsmEvent.Finished.name, secondStepState.name);
-		delayState.AddTransition(leavingSceneEvent.name, missState.name);
-		AddDashCancel(delayState);
-
-		// perform the second slash, reduce gravity again
-		secondStepState.AddMethod(() => {
-			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-		});
-		secondStepState.AddActions(
-			new Tk2dPlayAnimationWithEvents {
-				gameObject = ownerHornet,
-				clipName = "DownSlashAlt",
-				animationCompleteEvent = FsmEvent.Finished,
-			},
-			new DecelerateV2 {
-				gameObject = ownerHornet,
-				deceleration = 0.78f,
-				brakeOnExit = false,
-			}
-		);
-		secondStepState.AddTransition(FsmEvent.Finished.name, missState.name);
-		secondStepState.AddTransition(attackLandedEvent.name, bounceState.name);
-		secondStepState.AddTransition(bounceTinkedEvent.name, bounceState.name);
-		secondStepState.AddTransition(bounceCancelEvent.name, bounceState.name);
-		secondStepState.AddTransition(leavingSceneEvent.name, missState.name);
-		AddDashCancel(secondStepState);
-
-		// if queued bounce, redirect to bounce; if not, end normally
-		missState.AddAction(new BoolTest {
-			boolVariable = bounceAtEnd,
-			isTrue = bounceAnywayEvent
-		});
+		// DOWNSLASH END
 		missState.AddMethod(() => {
 			Hc.cState.downAttacking = false;
-			Hc.rb2d.linearVelocity = Vector2.zero;
-			Hc.FinishDownspike(true);
+			Hc.FinishDownspike();
 		});
-		missState.AddTransition(bounceAnywayEvent.name, bounceState.name);
 
-		// perform a bounce because something was pogo'd upon
+		// DOWNSLASH BOUNCE
 		bounceState.AddMethod(() => {
-			Hc.cState.downAttacking = false;
+			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.SetStartWithDownSpikeBounce();
 		});
 
 		// if a dash input happens at any point, cancel the entire attack
 		dashCancelState.AddMethod(() => {
 			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
-			Moves.AltDownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
 			Hc.SetStartWithDash();
 		});
 
 		endStates = [missState, bounceState, dashCancelState];
+		return;
 
 		void AddDashCancel(FsmState state) {
 			state.AddAction(new ListenForDash {
