@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-namespace TravellerCrest.Attacks;
+﻿namespace TravellerCrest.Attacks;
 
 /// <summary>
 /// Makes an attack hold in place when used, rather than following Hornet.
@@ -32,7 +30,6 @@ internal class KeepPositionProxy : ComponentProxy<KeepWorldPosition> {
 		component.GetComponent<NailAttackBase>().AttackStarting += ResetKeptPos;
 
 		void ResetKeptPos() {
-			Debug.LogWarning($"WAGH {component.gameObject.name}");
 			component.enabled = false;
 			component.enabled = Value;
 		}

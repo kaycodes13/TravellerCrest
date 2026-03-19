@@ -27,7 +27,7 @@ internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 		get => _travelDist;
 		set {
 			_travelDist = value;
-			if (component) component!.travelDistance = value;
+			if (component) component.travelDistance = value;
 		}
 	}
 	private Vector2 _travelDist = Vector2.zero;
@@ -36,7 +36,7 @@ internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 		get => _recoilDist;
 		set {
 			_recoilDist = value;
-			if (component) component!.recoilDistance = value;
+			if (component) component.recoilDistance = value;
 		}
 	}
 	private float _recoilDist = 0;
@@ -48,7 +48,7 @@ internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 		get => _travelDuration;
 		set {
 			_travelDuration = value;
-			if (component) component!.travelDuration = value;
+			if (component) component.travelDuration = value;
 		}
 	}
 	private float _travelDuration = 0;
@@ -62,7 +62,7 @@ internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 		get => _travelCurve;
 		set {
 			_travelCurve = value;
-			if (component) component!.travelCurve = value;
+			if (component) component.travelCurve = value;
 		}
 	}
 	private AnimationCurve _travelCurve = AnimationCurve.Linear(0, 0, 1, 1);
@@ -72,7 +72,9 @@ internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 	private static GameObject ImpactRegular {
 		get {
 			if (!_impactRegular)
-				_impactRegular = GameObject.Find("shaman_blade_impact");
+				_impactRegular = HeroController.instance
+					.transform.Find("Attacks/Shaman/Slash")
+					.GetComponent<NailSlashTravel>().impactPrefab;
 			return _impactRegular;
 		}
 	}
