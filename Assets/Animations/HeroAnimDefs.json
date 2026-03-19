@@ -11,9 +11,15 @@
 
 			{ "Copy": { "Name": "UpSlash", "Crest": "Wanderer" } },
 
-			{ "Copy": { "Name": "DownSlash", "Crest": "Wanderer" } },
-			{ "Copy": { "Name": "DownSlashAlt", "Crest": "Wanderer" } },
-			{ "Copy": { "Name": "DownSlashEffect", "Crest": "Wanderer" } },
+			{
+				"Name": "DownSlash",
+				"Fps": 14,
+				"WrapMode": "Once",
+				"Triggers": [ 1 ],
+				"Composite": [
+					{ "Start": 1, "End": 6, "Name": "ToolThrow Q" }
+				]
+			},
 
 			{
 				"Name": "Slash_Charged Antic",
@@ -57,6 +63,8 @@
 					{ "Start": 1, "End": 6, "Name": "ToolThrowAlt Q" }
 				]
 			},
+			{ "Copy": { "Name": "Wanderer RecoilStab", "Crest": "Wanderer" } },
+			{ "Copy": { "Name": "Wanderer RecoilStab Efct", "Crest": "Wanderer" } },
 
 			{
 				"Name": "BindCharge Ground",

@@ -1,19 +1,13 @@
-﻿using Coffee.UISoftMask;
-using GlobalEnums;
+﻿using GlobalEnums;
 using Needleforge.Data;
 using Silksong.UnityHelper.Extensions;
-using Silksong.UnityHelper.Util;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using TravellerCrest.Components;
 using TravellerCrest.Data;
 using TravellerCrest.Utils;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Timeline;
-using UnityEngine.UI;
 
 namespace TravellerCrest.Mechanics;
 

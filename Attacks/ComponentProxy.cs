@@ -22,13 +22,6 @@ internal abstract class ComponentProxy<T> where T : Component {
 	protected abstract void Init();
 
 	/// <summary>
-	/// Gets the first component of the specified type attached to the
-	/// <see cref="GameObject"/> that <see cref="component"/> is attached to.
-	/// </summary>
-	protected C GetOwnerComponent<C>() where C : Component
-		=> component!.gameObject.GetComponent<C>();
-
-	/// <summary>
 	/// Use to initialize the proxied component when the
 	/// <see cref="GameObject"/> it's part of is created.
 	/// </summary>

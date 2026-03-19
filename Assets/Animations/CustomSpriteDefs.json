@@ -9,6 +9,8 @@
 	{ "Path": "HUD.hud_ss_2.png", "Pivot": { "x": 183.5, "y": 105.5 } },
 	{ "Path": "HUD.hud_ss_full.png", "Pivot": { "x": 183.5, "y": 105.5 } },
 
+	{ "Path": "Attacks.empty.png", "Pivot": { "x": 0, "y": 0 } },
+
 	{ "Path": "Attacks.ja_0.png", "Pivot": { "x": 203, "y": 120 } },
 	{ "Path": "Attacks.ja_1.png", "Pivot": { "x": 282, "y": 115 } },
 	{ "Path": "Attacks.ja_2.png", "Pivot": { "x": 210, "y": 77 } },

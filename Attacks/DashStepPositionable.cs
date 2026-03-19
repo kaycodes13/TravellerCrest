@@ -3,20 +3,20 @@ using UnityEngine;
 
 namespace TravellerCrest.Attacks;
 
-internal class DashAttackStepPositionable : DashAttack.Step {
+internal class DashStepPositionable : DashAttack.Step {
 
 	#region API
 
-	public bool KeepWorldPosition {
+	public TransformProxy? Transform { get; set; }
+
+	public KeepPositionProxy? KeepWorldPosition {
 		get => _keepPos;
 		set {
 			_keepPos = value;
-			if (GameObject) keepWorldPosition!.enabled = value;
+			if (GameObject) _keepPos?.Initialize(GameObject);
 		}
 	}
-	private bool _keepPos = false;
-
-	public TransformProxy? Transform { get; set; }
+	private KeepPositionProxy? _keepPos;
 
 	/// <inheritdoc cref="AttackBase.AnimName"/>
 	/// <remarks>
@@ -35,38 +35,22 @@ internal class DashAttackStepPositionable : DashAttack.Step {
 
 	#endregion
 
-	protected KeepWorldPosition? keepWorldPosition;
 	protected NailSlash? nailSlash;
 	protected override NailAttackBase? NailAttack => nailSlash;
 
 	protected override void AddComponents(HeroController hc) {
 		base.AddComponents(hc);
+		Object.DestroyImmediate(dashStab);
 		nailSlash = GameObject!.AddComponent<NailSlash>();
-
-		keepWorldPosition = GameObject!.AddComponent<KeepWorldPosition>();
 	}
 
 	protected override void LateInitializeComponents(HeroController hc) {
 		base.LateInitializeComponents(hc);
-		Transform?.Initialize(GameObject!);
-
-		Object.Destroy(dashStab);
 
 		nailSlash!.animName = AnimName;
 		Collider!.enabled = false;
 
-		keepWorldPosition!.getPositionOnEnable
-			= keepWorldPosition.resetOnDisable
-			= keepWorldPosition!.keepScaleX
-			= keepWorldPosition!.keepScaleY
-			= keepWorldPosition!.keepX
-			= keepWorldPosition!.keepY
-			= true;
-		keepWorldPosition!.enabled = false;
-
-		nailSlash!.AttackStarting += () => {
-			keepWorldPosition.enabled = false;
-			keepWorldPosition.enabled = KeepWorldPosition;
-		};
+		Transform?.Initialize(GameObject!);
+		KeepWorldPosition?.Initialize(GameObject!);
 	}
 }

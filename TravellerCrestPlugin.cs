@@ -15,12 +15,6 @@ namespace TravellerCrest;
 
 /*
 
-TODO:
-
-- possibly a complex wall attack - designer still deciding
-- config menu (possibly with debug options to tweak heroconfig, etc)
-- playtesting, tweaking math
-
 TO RESEARCH:
 
 - how to make a silk skill
@@ -29,9 +23,9 @@ TO RESEARCH:
 
 [BepInAutoPlugin(id: "io.github.kaycodes13.travellercrest")]
 [BepInDependency("org.silksong-modding.i18n", "1.0.2")]
-[BepInDependency("org.silksong-modding.fsmutil", "0.3.12")]
+[BepInDependency("org.silksong-modding.fsmutil", "0.3.16")]
 [BepInDependency("org.silksong-modding.unityhelper", "1.1.1")]
-[BepInDependency("io.github.needleforge", "0.8.0")]
+[BepInDependency("io.github.needleforge", "0.8.1")]
 [BepInDependency("org.silksong-modding.modmenu", "0.2.0")]
 [BepInIncompatibility("com.cometcake575.architect")]
 public partial class TravellerCrestPlugin : BaseUnityPlugin, IModMenuCustomMenu {
