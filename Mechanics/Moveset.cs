@@ -321,8 +321,8 @@ internal static class Moveset {
 				var de = step.GameObject!.GetComponent<DamageEnemies>();
 				de.dealtDamageFSM = Hc.sprintFSM;
 				de.dealtDamageFSMEvent = "DASH HIT";
+			}
 		}
-	}
 	}
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -376,8 +376,8 @@ internal static class Moveset {
 			},
 			new SetVelocityByScale {
 				gameObject = ownerHornet,
-				speed = 14f,
-				ySpeed = 16f,
+				speed = 12f,
+				ySpeed = 18f,
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
@@ -387,19 +387,19 @@ internal static class Moveset {
 				IsActive = true,
 				queueBool = false,
 				WasPressed = FsmEvent.GetFsmEvent("ATTACK"),
-				DelayBeforeActive = 0.05f,
+				DelayBeforeActive = 0.04f,
 			},
 			new ListenForDashV2 {
 				IsActive = true,
 				WasPressed = FsmEvent.GetFsmEvent("DASH"),
-				DelayBeforeActive = 0.05f,
+				DelayBeforeActive = 0.04f,
 			},
 			new ListenForJumpV2 {
 				activeBool = true,
 				queueBool = false,
 				isPressedBool = false,
 				wasPressed = FsmEvent.GetFsmEvent("JUMP"),
-				delayBeforeActive = 0.05f,
+				delayBeforeActive = 0.04f,
 			}
 		);
 		slashState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
@@ -454,13 +454,13 @@ internal static class Moveset {
 		});
 		recoilSlashState.AddActions(
 			new SetVelocityByScale {
-				gameObject = ownerHornet,
-				speed = -45f,
-				ySpeed = -15f,
+				gameObject = ownerHornet, // orig: -45 -15
+				speed = -48,
+				ySpeed = -16,
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
-				deceleration = 0.95f,
+				deceleration = 0.96f,
 			},
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
