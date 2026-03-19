@@ -63,6 +63,8 @@
 					{ "Start": 1, "End": 6, "Name": "ToolThrowAlt Q" }
 				]
 			},
+			{ "Copy": { "Name": "Wanderer RecoilStab", "Crest": "Wanderer" } },
+			{ "Copy": { "Name": "Wanderer RecoilStab Efct", "Crest": "Wanderer" } },
 
 			{
 				"Name": "BindCharge Ground",

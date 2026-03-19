@@ -289,19 +289,39 @@ internal static class Moveset {
 					},
 					Scale = new(-1, 0.8f),
 					KeepWorldPosition = true,
-				}
+					StunDamage = STUN_DAMAGE,
+				},
+				new DashAttackStepPositionable {
+					AnimName = "Wanderer RecoilStab Efct",
+					Hitbox = [
+						new(-3.09f, -0.22f),
+						new(-4.33f, -0.68f),
+						new(-2.99f, -1.22f),
+						new(-0.31f, -1.19f),
+						new(-0.35f, -0.09f),
+					],
+					Transform = new() {
+						Position = new(0.74f, 0.81f),
+						Rotation = Quaternion.Euler(0, 0, 24.84f)
+					},
+					Scale = new(0.99f, 1.16f),
+					StunDamage = STUN_DAMAGE,
+				},
 			]
 		};
 		Moves.DashSlash.SetAnimLibrary(AnimationManager.MainLib);
 
-		Moves.OnInitialized += SetDashAttackSound;
+		Moves.OnInitialized += SetDashAttackSoundAndEvents;
 
-		static void SetDashAttackSound() {
+		static void SetDashAttackSoundAndEvents() {
 			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
 			Moves.DashSlash!.Steps[0].Sound = GetSound(shaman.NormalSlashObject);
-			//Moves.DashSlash!.Steps[0].Sound = shaman.ChargeSlash
-			//	.GetComponent<PlayRandomAudioEvent>().audioEvent.Clips
-			//	.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
+
+			foreach (var step in Moves.DashSlash!.Steps) {
+				var de = step.GameObject!.GetComponent<DamageEnemies>();
+				de.dealtDamageFSM = Hc.sprintFSM;
+				de.dealtDamageFSMEvent = "DASH HIT";
+			}
 		}
 	}
 
@@ -310,8 +330,18 @@ internal static class Moveset {
 			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner };
 
 		FsmState
+			continueSprintState = fsm.GetState("Continue Sprint?")!,
+			bonkState = fsm.GetState("Bonk")!,
 			slashState = fsm.AddState($"{SifId} Slash"),
-			endState = fsm.AddState($"{SifId} End");
+			dashCancelState = fsm.AddState($"{SifId} Dash Cancel"),
+			jumpCancelState = fsm.AddState($"{SifId} Jump Cancel"),
+			recoveryState = fsm.AddState($"{SifId} End"),
+			recoilAnticState = fsm.AddState($"{SifId} Followup Antic"),
+			recoilSlashState = fsm.AddState($"{SifId} Followup Slash"),
+			recoilEndState = fsm.AddState($"{SifId} Followup End"),
+			recoilBounceState = fsm.AddState($"{SifId} Followup Bounce");
+
+		#region Craft attack + leap back
 
 		// Play antic, slow down, relinquishing control stuff
 		startState.AddMethod(() => {
@@ -346,27 +376,114 @@ internal static class Moveset {
 			},
 			new SetVelocityByScale {
 				gameObject = ownerHornet,
-				speed = 25f,
-				ySpeed = 14.5f,
-				everyFrame = false,
+				speed = 12f,
+				ySpeed = 18f,
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
 				deceleration = 0.9f,
-				brakeOnExit = false,
+			},
+			new ListenForAttackV2 {
+				IsActive = true,
+				queueBool = false,
+				WasPressed = FsmEvent.GetFsmEvent("ATTACK"),
+				DelayBeforeActive = 0.04f,
+			},
+			new ListenForDashV2 {
+				IsActive = true,
+				WasPressed = FsmEvent.GetFsmEvent("DASH"),
+				DelayBeforeActive = 0.04f,
+			},
+			new ListenForJumpV2 {
+				activeBool = true,
+				queueBool = false,
+				isPressedBool = false,
+				wasPressed = FsmEvent.GetFsmEvent("JUMP"),
+				delayBeforeActive = 0.04f,
 			}
 		);
-		slashState.AddTransition(FsmEvent.Finished.name, endState.name);
+		slashState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
+		slashState.AddTransition("DAMAGER TINKED", bonkState.name);
+		slashState.AddTransition("ATTACK", recoilAnticState.name);
+		slashState.AddTransition("DASH", dashCancelState.name);
+		slashState.AddTransition("JUMP", jumpCancelState.name);
+
+		// allow attack to be canceled via re-dashing
+		dashCancelState.AddMethod(Hc.SetStartWithDash);
+
+		// allow attack to be canceled via jumping/floating
+		jumpCancelState.AddMethod(() => {
+			if (Hc.playerData.hasDoubleJump)
+				Hc.SetStartWithDoubleJump();
+			else if (Hc.playerData.hasBrolly)
+				Hc.SetStartWithBrolly();
+		});
 
 		// re-enable gravity, set attack cooldown, etc
-		endState.AddMethod(() => {
+		recoveryState.AddMethod(() => {
 			Hc.SetStartFromReaperUpperslash();
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
 		});
+		recoveryState.AddTransition(FsmEvent.Finished.name, continueSprintState.name);
 
-		endStates = [endState];
+		#endregion
+
+		#region Lunging followup attack
+
+		// halt velocity, play recoil stab anim+sound
+		recoilAnticState.AddMethod(() => {
+			Hc.rb2d.linearVelocity = Vector2.zero;
+			Hc.audioCtrl.PlaySound(GlobalEnums.HeroSounds.DASH);
+			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
+		});
+		recoilAnticState.AddActions(
+			new Tk2dPlayAnimationWithEvents {
+				gameObject = ownerHornet,
+				clipName = "Wanderer RecoilStab",
+				animationTriggerEvent = FsmEvent.Finished,
+			}
+		);
+		recoilAnticState.AddTransition(FsmEvent.Finished.name, recoilSlashState.name);
+
+		// do recoil stab movement + start the attack
+		recoilSlashState.AddMethod(() => {
+			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			Hc.StartDownspikeInvulnerability();
+		});
+		recoilSlashState.AddActions(
+			new SetVelocityByScale {
+				gameObject = ownerHornet, // orig: -45 -15
+				speed = -48,
+				ySpeed = -16,
+			},
+			new DecelerateV2 {
+				gameObject = ownerHornet,
+				deceleration = 0.96f,
+			},
+			new Tk2dWatchAnimationEvents {
+				gameObject = ownerHornet,
+				animationCompleteEvent = FsmEvent.Finished,
+			}
+		);
+		recoilSlashState.AddTransition("FINISHED", continueSprintState.name);
+		recoilSlashState.AddTransition("DAMAGER TINKED", bonkState.name);
+		recoilSlashState.AddTransition("DASH HIT", recoilBounceState.name);
+
+		// recoil stab bounces off enemies' heads
+		recoilBounceState.AddMethod(() => {
+			Hc.rb2d.linearVelocity = Vector2.zero;
+			Hc.SetStartWithDownSpikeBounce();
+			Hc.CrestAttackRecovery();
+			Hc.AffectedByGravity(true);
+			Hc.SetAllowRecoilWhileRelinquished(false);
+			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
+		});
+
+		#endregion
+
+		endStates = [jumpCancelState, dashCancelState, recoilBounceState];
 	}
 
 	#endregion
