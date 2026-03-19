@@ -17,10 +17,12 @@ namespace TravellerCrest.Mechanics;
 [HarmonyPatch]
 internal static class Moveset {
 
-	private const float STUN_DAMAGE = 0.8f;
-	private const float DOWN_ATTACK_GAP = 0.01f;
+	const float STUN_DAMAGE = 0.8f;
+	const float DOWN_ATTACK_GAP = 0.01f;
 
-	private static readonly Vector2[] JUST_ATTACK_HITBOX = [
+	const string ALT_WALL_SLASH_EVENT = "TRAVELLER LUNGE";
+
+	static readonly Vector2[] JUST_ATTACK_HITBOX = [
 		new(-2f, 0.1f),
 		new(-0.8f, 1.9f),
 		new(-1.6f, 2f),
@@ -37,6 +39,8 @@ internal static class Moveset {
 	static MovesetData Moves => SifCrest.Moveset;
 	static HeroConfigNeedleforge Config => SifCrest.Moveset.HeroConfig!;
 	static AudioClip GetSound(GameObject go) => go.GetComponent<AudioSource>().clip;
+	static HeroController.ConfigGroup GetCrest(string name)
+		=> Hc.configs.First(x => x.Config.name == name);
 
 	internal static void Setup() {
 		Moves.HeroConfig = ScriptableObject.CreateInstance<HeroConfigNeedleforge>();
@@ -133,7 +137,7 @@ internal static class Moveset {
 		Moves.OnInitialized += SetSimpleAttackSounds;
 
 		static void SetSimpleAttackSounds() {
-			var wanderer = Hc.configs.First(x => x.Config.name == "Wanderer");
+			var wanderer = GetCrest("Wanderer");
 			Moves.Slash!.Sound = GetSound(wanderer.NormalSlashObject);
 			Moves.AltSlash!.Sound = GetSound(wanderer.AlternateSlashObject);
 			Moves.UpSlash!.Sound = GetSound(wanderer.UpSlashObject);
@@ -142,8 +146,6 @@ internal static class Moveset {
 	}
 
 	#region Alt Wall Slash
-
-	private const string ALT_WALL_SLASH_EVENT = "TRAVELLER LUNGE";
 
 	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Attack))]
 	[HarmonyPostfix]
@@ -190,11 +192,10 @@ internal static class Moveset {
 			},
 		};
 
-		Moves.OnInitialized += SetDownAttackSounds;
+		Moves.OnInitialized += DownAttackInit;
 
-		static void SetDownAttackSounds() {
-			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
-			Moves.DownSlash!.Sound = GetSound(shaman.DownSlashObject);
+		static void DownAttackInit() {
+			Moves.DownSlash!.Sound = GetSound(GetCrest("Shaman").DownSlashObject);
 		}
 	}
 
@@ -304,13 +305,10 @@ internal static class Moveset {
 
 	#region Dash Slash
 
+	static DashAttack.Step DashSlashMain => Moves.DashSlash!.Steps[0];
+	static DashAttack.Step DashSlashLunge => Moves.DashSlash!.Steps[1];
+
 	private static void DashSlash() {
-		Config.SetDashStabFields(
-			time: 0.12f,
-			speed: -50,
-			bounceJumpSpeed: 18.6f,
-			forceShortBounce: false
-		);
 		Config.DashSlashFsmEdit = DashSlashFsmEdit;
 
 		Moves.DashSlash = new DashAttack {
@@ -346,11 +344,11 @@ internal static class Moveset {
 		};
 		Moves.DashSlash.SetAnimLibrary(AnimationManager.MainLib);
 
-		Moves.OnInitialized += SetDashAttackSoundAndEvents;
+		Moves.OnInitialized += DashAttackInit;
 
-		static void SetDashAttackSoundAndEvents() {
-			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
-			Moves.DashSlash!.Steps[0].Sound = GetSound(shaman.NormalSlashObject);
+		static void DashAttackInit() {
+			DashSlashMain.Sound = GetSound(GetCrest("Shaman").NormalSlashObject);
+			DashSlashLunge.Sound = GetSound(GetCrest("Hunter").DownSlashObject);
 
 			foreach (var step in Moves.DashSlash!.Steps) {
 				var de = step.GameObject!.GetComponent<DamageEnemies>();
@@ -377,6 +375,8 @@ internal static class Moveset {
 			lungeMissState = fsm.AddState($"{SifId} Followup Miss"),
 			lungeBounceState = fsm.AddState($"{SifId} Followup Bounce");
 
+		float lungeInputDelay = 0.04f;
+
 		#region Craft attack + leap back
 
 		// Play antic, slow down, relinquishing control stuff
@@ -402,7 +402,7 @@ internal static class Moveset {
 		slashState.AddMethod(() => {
 			Hc.cState.onGround = false;
 			Hc.AffectedByGravity(false);
-			Moves.DashSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			DashSlashMain.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 		});
 		slashState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -412,8 +412,8 @@ internal static class Moveset {
 			},
 			new SetVelocityByScale {
 				gameObject = ownerHornet,
-				speed = 12f,
-				ySpeed = 18f,
+				speed = 12,
+				ySpeed = 18,
 			},
 			new DecelerateV2 {
 				gameObject = ownerHornet,
@@ -423,19 +423,19 @@ internal static class Moveset {
 				IsActive = true,
 				queueBool = false,
 				WasPressed = FsmEvent.GetFsmEvent("ATTACK"),
-				DelayBeforeActive = 0.04f,
+				DelayBeforeActive = lungeInputDelay,
 			},
 			new ListenForDashV2 {
 				IsActive = true,
 				WasPressed = FsmEvent.GetFsmEvent("DASH"),
-				DelayBeforeActive = 0.04f,
+				DelayBeforeActive = lungeInputDelay,
 			},
 			new ListenForJumpV2 {
 				activeBool = true,
 				queueBool = false,
 				isPressedBool = false,
 				wasPressed = FsmEvent.GetFsmEvent("JUMP"),
-				delayBeforeActive = 0.04f,
+				delayBeforeActive = lungeInputDelay,
 			}
 		);
 		slashState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
@@ -494,7 +494,6 @@ internal static class Moveset {
 		// halt velocity, play recoil stab anim+sound
 		lungeAnticState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
-			Hc.audioCtrl.PlaySound(GlobalEnums.HeroSounds.DASH);
 			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
 		});
 		lungeAnticState.AddActions(
@@ -508,7 +507,8 @@ internal static class Moveset {
 
 		// do recoil stab movement + start the attack
 		lungeSlashState.AddMethod(() => {
-			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			DashSlashLunge.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			Hc.audioCtrl.PlaySound(HeroSounds.DASH);
 			Hc.StartDownspikeInvulnerability();
 		});
 		lungeSlashState.AddActions(
@@ -537,7 +537,7 @@ internal static class Moveset {
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
-			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
+			DashSlashLunge.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
 		});
 
 		#endregion
@@ -599,51 +599,32 @@ internal static class Moveset {
 		};
 		Moves.ChargedSlash.SetAnimLibrary(AnimationManager.MainLib);
 
-		Moves.OnInitialized += SetChargedAttackSoundsAndShakes;
+		Moves.OnInitialized += ChargedAttackInit;
 
-		static void SetChargedAttackSoundsAndShakes() {
+		static void ChargedAttackInit() {
 			Moves.ChargedSlash!.CameraShakeProfiles = [Camera.TinyShake, Camera.EnemyKillShake];
 
-			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
-			var sound = shaman.ChargeSlash.GetComponent<PlayRandomAudioEvent>().audioEvent
-				.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
+			var sound = GetCrest("Shaman").ChargeSlash.GetComponent<PlayRandomAudioEvent>()
+				.audioEvent.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
 			foreach (var step in Moves.ChargedSlash!.Steps)
 				step.Sound = sound;
 		}
 	}
 
 	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
-		FsmOwnerDefault
-			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner },
-			ownerAttack = new() {
-				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = Moves.ChargedSlash!.GameObject!
-			},
-			ownerStepOne = new() {
-				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = Moves.ChargedSlash!.Steps[0].GameObject!
-			},
-			ownerStepTwo = new() {
-				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = Moves.ChargedSlash!.Steps[1].GameObject!
-			},
-			ownerStepThree = new() {
-				OwnerOption = OwnerDefaultOption.SpecifyGameObject,
-				GameObject = Moves.ChargedSlash!.Steps[2].GameObject!
-			};
+		FsmOwnerDefault ownerHornet = new();
 
 		FsmState
-			beginAttackState = fsm.AddState($"{SifId} Attack Starting"),
-			stepOneState = fsm.AddState($"{SifId} Attack Step 1"),
-			stepTwoState = fsm.AddState($"{SifId} Attack Step 2"),
-			stepThreeState = fsm.AddState($"{SifId} Attack Step 3"),
+			slashState = fsm.AddState($"{SifId} Attack Starting"),
+			oneState = fsm.AddState($"{SifId} Attack Step 1"),
+			twoState = fsm.AddState($"{SifId} Attack Step 2"),
+			threeState = fsm.AddState($"{SifId} Attack Step 3"),
 			recoveryState = fsm.AddState($"{SifId} Recovery");
 
-		fsm.GetState("Cancel All")!.AddMethod(() =>
-			HeroController.instance.AllowRecoil()
-		);
+		fsm.GetState("Cancel All")!.AddMethod(Hc.AllowRecoil);
 
-		// Play hornet antic anim, decelerate
+		// ANTIC
+		startState.AddMethod(Hc.SpriteFlash.flashFocusHeal);
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
@@ -654,96 +635,66 @@ internal static class Moveset {
 				gameObject = ownerHornet,
 				deceleration = 0.85f,
 				brakeOnExit = true,
-			},
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.RequireReceiver,
-				functionCall = new() { FunctionName = nameof(SpriteFlash.flashFocusHeal) }
 			}
 		);
-		startState.AddTransition(FsmEvent.Finished.name, beginAttackState.name);
+		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
 
-		// Play hornet attack anim, start first step on the first anim trigger
-		beginAttackState.AddMethod(() =>
-			HeroController.instance.PreventRecoil(
+		// START ATTACK ANIM
+		slashState.AddMethod(() => {
+			Hc.PreventRecoil(
 				AnimationManager.MainLib.GetClipByName("Slash_Charged").Duration
-			)
-		);
-		beginAttackState.AddActions(
-			new SetBoolValue {
-				boolVariable = fsm.GetBoolVariable("Is Anim Finished"),
-				boolValue = false,
-			},
+			);
+			fsm.FindBoolVariable("Is Anim Finished")!.Value = false;
+		});
+		slashState.AddAction(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
 				clipName = "Slash_Charged",
 				animationTriggerEvent = FsmEvent.Finished,
 			}
 		);
-		beginAttackState.AddTransition(FsmEvent.Finished.name, stepOneState.name);
+		slashState.AddTransition(FsmEvent.Finished.name, oneState.name);
 
-		// Fire first attack, start second step on second anim trigger
-		stepOneState.AddActions(
-			new ActivateGameObject {
-				gameObject = ownerAttack,
-				activate = true,
-				recursive = false,
-			},
-			new SendMessageV2 {
-				gameObject = ownerStepOne,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
-			},
+		// FIRST
+		oneState.AddMethod(() => {
+			Moves.ChargedSlash!.GameObject!.SetActive(true);
+			Moves.ChargedSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+		});
+		oneState.AddAction(
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
 				animationTriggerEvent = FsmEvent.Finished
 			}
 		);
-		stepOneState.AddTransition(FsmEvent.Finished.name, stepTwoState.name);
+		oneState.AddTransition(FsmEvent.Finished.name, twoState.name);
 
-		// Fire second attack, start third step on third anim trigger
-		stepTwoState.AddActions(
-			new SendMessageV2 {
-				gameObject = ownerStepTwo,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
-			},
+		// SECOND
+		twoState.AddMethod(() =>
+			Moves.ChargedSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash))
+		);
+		twoState.AddAction(
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
 				animationTriggerEvent = FsmEvent.Finished,
 			}
 		);
-		stepTwoState.AddTransition(FsmEvent.Finished.name, stepThreeState.name);
+		twoState.AddTransition(FsmEvent.Finished.name, threeState.name);
 
-		// Fire third attack, start recovering when anim finished
-		stepThreeState.AddActions(
-			new SendMessageV2 {
-				gameObject = ownerStepThree,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() { FunctionName = nameof(NailSlash.StartSlash) }
-			},
+		// THIRD
+		threeState.AddMethod(() =>
+			Moves.ChargedSlash!.Steps[2].GameObject!.SendMessage(nameof(NailSlash.StartSlash))
+		);
+		threeState.AddActions(
 			new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
 				animationTriggerEvent = FsmEvent.Finished,
 				animationCompleteEvent = FsmEvent.Finished,
 			}
 		);
-		stepThreeState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
+		threeState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
 
-		recoveryState.AddActions(
-			new SendMessageV2 {
-				gameObject = ownerHornet,
-				delivery = SendMessageV2.MessageType.SendMessage,
-				options = SendMessageOptions.DontRequireReceiver,
-				functionCall = new() {
-					FunctionName = nameof(HeroController.SetStartWithDownSpikeEnd)
-				}
-			}
-		);
+		// END
+		recoveryState.AddMethod(Hc.SetStartWithDownSpikeEnd);
 
 		endStates = [recoveryState];
 	}
