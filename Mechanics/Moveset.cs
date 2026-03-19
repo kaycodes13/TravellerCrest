@@ -520,11 +520,17 @@ internal static class Moveset {
 				animationCompleteEvent = FsmEvent.Finished,
 			}
 		);
-		lungeSlashState.AddTransition("FINISHED", continueSprintState.name);
+		lungeSlashState.AddTransition(FsmEvent.Finished.name, lungeMissState.name);
 		lungeSlashState.AddTransition("DAMAGER TINKED", bonkState.name);
 		lungeSlashState.AddTransition("DASH HIT", lungeBounceState.name);
 
-		// recoil stab bounces off enemies' heads
+		lungeMissState.AddMethod(() => {
+			Hc.CrestAttackRecovery();
+			Hc.AffectedByGravity(true);
+			Hc.SetAllowRecoilWhileRelinquished(true);
+		});
+		lungeMissState.AddTransition("FINISHED", continueSprintState.name);
+
 		lungeBounceState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.SetStartWithDownSpikeBounce();
