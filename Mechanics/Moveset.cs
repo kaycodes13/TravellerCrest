@@ -289,17 +289,40 @@ internal static class Moveset {
 					},
 					Scale = new(-1, 0.8f),
 					KeepWorldPosition = true,
-				}
+					StunDamage = STUN_DAMAGE,
+				},
+				new DashAttackStepPositionable {
+					AnimName = "Wanderer RecoilStab Efct",
+					Hitbox = [
+						new(-3.09f, -0.22f),
+						new(-4.33f, -0.68f),
+						new(-2.99f, -1.22f),
+						new(-0.31f, -1.19f),
+						new(-0.35f, -0.09f),
+					],
+					Transform = new() {
+						Position = new(0.74f, 0.81f),
+						Rotation = Quaternion.Euler(0, 0, 24.84f)
+					},
+					Scale = new(0.99f, 1.16f),
+					StunDamage = STUN_DAMAGE,
+				},
 			]
 		};
 		Moves.DashSlash.SetAnimLibrary(AnimationManager.MainLib);
 
-		Moves.OnInitialized += SetDashAttackSound;
+		Moves.OnInitialized += SetDashAttackSoundAndEvents;
 
-		static void SetDashAttackSound() {
+		static void SetDashAttackSoundAndEvents() {
 			var shaman = Hc.configs.First(x => x.Config.name == "Shaman");
 			Moves.DashSlash!.Steps[0].Sound = GetSound(shaman.NormalSlashObject);
+
+			foreach (var step in Moves.DashSlash!.Steps) {
+				var de = step.GameObject!.GetComponent<DamageEnemies>();
+				de.dealtDamageFSM = Hc.sprintFSM;
+				de.dealtDamageFSMEvent = "DASH HIT";
 		}
+	}
 	}
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
@@ -317,9 +340,6 @@ internal static class Moveset {
 			recoilSlashState = fsm.AddState($"{SifId} Followup Slash"),
 			recoilEndState = fsm.AddState($"{SifId} Followup End"),
 			recoilBounceState = fsm.AddState($"{SifId} Followup Bounce");
-
-		var wanderer = Hc.configs.First(x => x.Config.name == "Wanderer");
-		var recoilStab = wanderer.ActiveRoot.transform.Find("RecoilStab");
 
 		#region Craft attack + leap back
 
@@ -377,6 +397,7 @@ internal static class Moveset {
 			new ListenForJumpV2 {
 				activeBool = true,
 				queueBool = false,
+				isPressedBool = false,
 				wasPressed = FsmEvent.GetFsmEvent("JUMP"),
 				delayBeforeActive = 0.05f,
 			}
@@ -428,8 +449,7 @@ internal static class Moveset {
 
 		// do recoil stab movement + start the attack
 		recoilSlashState.AddMethod(() => {
-			wanderer.ActiveRoot.SetActive(true);
-			recoilStab.SendMessage(nameof(NailSlash.StartSlash));
+			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			Hc.StartDownspikeInvulnerability();
 		});
 		recoilSlashState.AddActions(
@@ -458,7 +478,7 @@ internal static class Moveset {
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
-			recoilStab.SendMessage(nameof(NailSlash.CancelAttack));
+			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
 		});
 
 		#endregion
