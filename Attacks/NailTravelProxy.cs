@@ -7,7 +7,7 @@ namespace TravellerCrest.Attacks;
 /// <summary>
 /// Makes an attack travel over time.
 /// </summary>
-internal class AttackTravelProxy : ComponentProxy<NailSlashTravel> {
+internal class NailTravelProxy : ComponentProxy<NailSlashTravel> {
 
 	#region API
 
@@ -15,7 +15,7 @@ internal class AttackTravelProxy : ComponentProxy<NailSlashTravel> {
 		get => _yOffset;
 		set {
 			_yOffset = value;
-			if (component) component!.groundedYOffset = value;
+			if (component) component.groundedYOffset = value;
 		}
 	}
 	private float _yOffset = 0;

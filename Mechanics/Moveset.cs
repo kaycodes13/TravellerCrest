@@ -181,7 +181,7 @@ internal static class Moveset {
 		Config.SetDownspikeFields(recoveryTime: 0.24f);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
-		Moves.DownSlash = new DownAttackStationary {
+		Moves.DownSlash = new DownAttackPositionable {
 			Name = "Down",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "Slash_Charged Effect",
@@ -190,6 +190,7 @@ internal static class Moveset {
 				Position = new(0.05f, -0.15f),
 				Rotation = Quaternion.Euler(0, 0, 40),
 			},
+			KeepWorldPosition = true,
 		};
 
 		Moves.OnInitialized += DownAttackInit;
@@ -314,7 +315,7 @@ internal static class Moveset {
 		Moves.DashSlash = new DashAttack {
 			Name = "Dash",
 			Steps = [
-				new DashAttackStepPositionable {
+				new DashStepPositionable {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					Transform = new() {
@@ -324,7 +325,7 @@ internal static class Moveset {
 					KeepWorldPosition = true,
 					StunDamage = STUN_DAMAGE,
 				},
-				new DashAttackStepPositionable {
+				new DashStepPositionable {
 					AnimName = "Wanderer RecoilStab Efct",
 					Hitbox = [
 						new(-3.09f, -0.22f),
@@ -348,7 +349,7 @@ internal static class Moveset {
 
 		static void DashAttackInit() {
 			DashSlashMain.Sound = GetSound(GetCrest("Shaman").NormalSlashObject);
-			DashSlashLunge.Sound = GetSound(GetCrest("Hunter").DownSlashObject);
+			DashSlashLunge.Sound = GetSound(GetCrest("Default").DownSlashObject);
 
 			foreach (var step in Moves.DashSlash!.Steps) {
 				var de = step.GameObject!.GetComponent<DamageEnemies>();
@@ -379,7 +380,6 @@ internal static class Moveset {
 
 		#region Craft attack + leap back
 
-		// Play antic, slow down, relinquishing control stuff
 		startState.AddMethod(() => {
 			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
 			Hc.SetAllowRecoilWhileRelinquished(true);
@@ -398,7 +398,6 @@ internal static class Moveset {
 		);
 		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
 
-		// Play anim attack and audio, start attack, disable gravity, leap back
 		slashState.AddMethod(() => {
 			Hc.cState.onGround = false;
 			Hc.AffectedByGravity(false);
@@ -444,10 +443,8 @@ internal static class Moveset {
 		slashState.AddTransition("DASH", dashCancelState.name);
 		slashState.AddTransition("JUMP", jumpCancelState.name);
 
-		// allow attack to be canceled via re-dashing
 		dashCancelState.AddMethod(Hc.SetStartWithDash);
 
-		// allow attack to be canceled via jumping/floating
 		jumpCancelState.AddMethod(() => {
 			if (Hc.playerData.hasDoubleJump)
 				Hc.SetStartWithDoubleJump();
@@ -455,7 +452,6 @@ internal static class Moveset {
 				Hc.SetStartWithBrolly();
 		});
 
-		// re-enable gravity, set attack cooldown, etc
 		recoveryState.AddMethod(() => {
 			Hc.SetStartFromReaperUpperslash();
 			Hc.CrestAttackRecovery();
@@ -491,7 +487,6 @@ internal static class Moveset {
 
 		#region Lunging followup attack
 
-		// halt velocity, play recoil stab anim+sound
 		lungeAnticState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
@@ -505,7 +500,6 @@ internal static class Moveset {
 		);
 		lungeAnticState.AddTransition(FsmEvent.Finished.name, lungeSlashState.name);
 
-		// do recoil stab movement + start the attack
 		lungeSlashState.AddMethod(() => {
 			DashSlashLunge.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			Hc.audioCtrl.PlaySound(HeroSounds.DASH);
@@ -560,7 +554,7 @@ internal static class Moveset {
 			PlayStepsInSequence = false,
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
-				new ChargeAttackStepPositionable {
+				new ChargeStepPositionable {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 0,
@@ -572,7 +566,7 @@ internal static class Moveset {
 					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
-				new ChargeAttackStepPositionable {
+				new ChargeStepPositionable {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 0,
@@ -583,7 +577,7 @@ internal static class Moveset {
 					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
-				new ChargeAttackStepPositionable {
+				new ChargeStepPositionable {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 1,
