@@ -1,4 +1,6 @@
-﻿using HutongGames.PlayMaker;
+﻿using GlobalEnums;
+using HarmonyLib;
+using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
@@ -12,6 +14,7 @@ using Camera = GlobalSettings.Camera;
 
 namespace TravellerCrest.Mechanics;
 
+[HarmonyPatch]
 internal static class Moveset {
 
 	private const float STUN_DAMAGE = 0.8f;
@@ -137,6 +140,38 @@ internal static class Moveset {
 			Moves.WallSlash!.Sound = GetSound(wanderer.WallSlashObject);
 		}
 	}
+
+	#region Alt Wall Slash
+
+	private const string ALT_WALL_SLASH_EVENT = "TRAVELLER LUNGE";
+
+	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Attack))]
+	[HarmonyPostfix]
+	private static void AltWallSlash(HeroController __instance, AttackDirection attackDir) {
+		if (!SifCrest.IsEquipped)
+			return;
+
+		var hc = __instance;
+		HeroActions input = hc.inputHandler.inputActions;
+
+		bool
+			wallSliding = hc.cState.wallSliding || hc.cState.wallScrambling,
+			pressingTowardWall =
+				(hc.touchingWallL && input.Left.IsPressed)
+				|| (hc.touchingWallR && input.Right.IsPressed);
+
+		if (wallSliding && !pressingTowardWall && attackDir == AttackDirection.normal) {
+			GameObject wallSlash = Moves.WallSlash!.GameObject!;
+			wallSlash.GetComponent<NailSlash>().CancelAttack();
+			wallSlash.GetComponent<AudioSource>().Stop(true);
+			hc.wallSlashing = false;
+			hc.SlashComponent = null;
+			hc.currentSlashDamager = null;
+			hc.sprintFSM.Fsm.Event(ALT_WALL_SLASH_EVENT);
+		}
+	}
+	
+	#endregion
 
 	#region Down Slash
 
@@ -327,7 +362,7 @@ internal static class Moveset {
 
 	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault
-			ownerHornet = new() { OwnerOption = OwnerDefaultOption.UseOwner };
+			ownerHornet = new();
 
 		FsmState
 			continueSprintState = fsm.GetState("Continue Sprint?")!,
@@ -336,10 +371,11 @@ internal static class Moveset {
 			dashCancelState = fsm.AddState($"{SifId} Dash Cancel"),
 			jumpCancelState = fsm.AddState($"{SifId} Jump Cancel"),
 			recoveryState = fsm.AddState($"{SifId} End"),
-			recoilAnticState = fsm.AddState($"{SifId} Followup Antic"),
-			recoilSlashState = fsm.AddState($"{SifId} Followup Slash"),
-			recoilEndState = fsm.AddState($"{SifId} Followup End"),
-			recoilBounceState = fsm.AddState($"{SifId} Followup Bounce");
+			altWallSlashState = fsm.AddState($"{SifId} Alt Wall Slash"),
+			lungeAnticState = fsm.AddState($"{SifId} Followup Antic"),
+			lungeSlashState = fsm.AddState($"{SifId} Followup Slash"),
+			lungeMissState = fsm.AddState($"{SifId} Followup Miss"),
+			lungeBounceState = fsm.AddState($"{SifId} Followup Bounce");
 
 		#region Craft attack + leap back
 
@@ -404,7 +440,7 @@ internal static class Moveset {
 		);
 		slashState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
 		slashState.AddTransition("DAMAGER TINKED", bonkState.name);
-		slashState.AddTransition("ATTACK", recoilAnticState.name);
+		slashState.AddTransition("ATTACK", lungeAnticState.name);
 		slashState.AddTransition("DASH", dashCancelState.name);
 		slashState.AddTransition("JUMP", jumpCancelState.name);
 
@@ -430,31 +466,54 @@ internal static class Moveset {
 
 		#endregion
 
+		#region Alt Wall Slash
+
+		altWallSlashState.AddMethod(() => {
+			Hc.SetAllowNailChargingWhileRelinquished(false);
+			Hc.SetAllowRecoilWhileRelinquished(true);
+			Hc.RelinquishControlNotVelocity();
+			Hc.CancelWallsliding();
+
+			if (Hc.cState.facingRight)
+				Hc.FaceLeft();
+			else
+				Hc.FaceRight();
+
+			DashSlashLunge.GameObject!.GetComponent<DamageEnemies>()
+				.SetDirectionByHeroFacing();
+		});
+		altWallSlashState.AddAction(new NextFrameEvent());
+		altWallSlashState.AddTransition(FsmEvent.Finished.name, lungeAnticState.name);
+
+		fsm.AddGlobalTransition(ALT_WALL_SLASH_EVENT, altWallSlashState.name);
+
+		#endregion
+
 		#region Lunging followup attack
 
 		// halt velocity, play recoil stab anim+sound
-		recoilAnticState.AddMethod(() => {
+		lungeAnticState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.audioCtrl.PlaySound(GlobalEnums.HeroSounds.DASH);
 			Hc.attackAudioTable.SpawnAndPlayOneShot(Hc.transform.position);
 		});
-		recoilAnticState.AddActions(
+		lungeAnticState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
 				clipName = "Wanderer RecoilStab",
 				animationTriggerEvent = FsmEvent.Finished,
 			}
 		);
-		recoilAnticState.AddTransition(FsmEvent.Finished.name, recoilSlashState.name);
+		lungeAnticState.AddTransition(FsmEvent.Finished.name, lungeSlashState.name);
 
 		// do recoil stab movement + start the attack
-		recoilSlashState.AddMethod(() => {
+		lungeSlashState.AddMethod(() => {
 			Moves.DashSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
 			Hc.StartDownspikeInvulnerability();
 		});
-		recoilSlashState.AddActions(
+		lungeSlashState.AddActions(
 			new SetVelocityByScale {
-				gameObject = ownerHornet, // orig: -45 -15
+				gameObject = ownerHornet,
 				speed = -48,
 				ySpeed = -16,
 			},
@@ -467,12 +526,12 @@ internal static class Moveset {
 				animationCompleteEvent = FsmEvent.Finished,
 			}
 		);
-		recoilSlashState.AddTransition("FINISHED", continueSprintState.name);
-		recoilSlashState.AddTransition("DAMAGER TINKED", bonkState.name);
-		recoilSlashState.AddTransition("DASH HIT", recoilBounceState.name);
+		lungeSlashState.AddTransition("FINISHED", continueSprintState.name);
+		lungeSlashState.AddTransition("DAMAGER TINKED", bonkState.name);
+		lungeSlashState.AddTransition("DASH HIT", lungeBounceState.name);
 
 		// recoil stab bounces off enemies' heads
-		recoilBounceState.AddMethod(() => {
+		lungeBounceState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
 			Hc.SetStartWithDownSpikeBounce();
 			Hc.CrestAttackRecovery();
@@ -483,7 +542,7 @@ internal static class Moveset {
 
 		#endregion
 
-		endStates = [jumpCancelState, dashCancelState, recoilBounceState];
+		endStates = [jumpCancelState, dashCancelState, lungeBounceState];
 	}
 
 	#endregion
