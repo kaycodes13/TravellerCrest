@@ -9,6 +9,7 @@ using System;
 using System.Linq;
 using TravellerCrest.Attacks;
 using TravellerCrest.Data;
+using TravellerCrest.Utils;
 using UnityEngine;
 using Camera = GlobalSettings.Camera;
 
@@ -163,9 +164,8 @@ internal static class Moveset {
 				|| (hc.touchingWallR && input.Right.IsPressed);
 
 		if (wallSliding && !pressingTowardWall && attackDir == AttackDirection.normal) {
-			GameObject wallSlash = Moves.WallSlash!.GameObject!;
-			wallSlash.GetComponent<NailSlash>().CancelAttack();
-			wallSlash.GetComponent<AudioSource>().Stop(true);
+			Moves.WallSlash!.CancelAtk();
+			Moves.WallSlash!.Get<AudioSource>().Stop(true);
 			hc.wallSlashing = false;
 			hc.SlashComponent = null;
 			hc.currentSlashDamager = null;
@@ -352,7 +352,7 @@ internal static class Moveset {
 			DashSlashLunge.Sound = GetSound(GetCrest("Default").DownSlashObject);
 
 			foreach (var step in Moves.DashSlash!.Steps) {
-				var de = step.GameObject!.GetComponent<DamageEnemies>();
+				var de = step.Get<DamageEnemies>();
 				de.dealtDamageFSM = Hc.sprintFSM;
 				de.dealtDamageFSMEvent = "DASH HIT";
 			}
@@ -401,7 +401,7 @@ internal static class Moveset {
 		slashState.AddMethod(() => {
 			Hc.cState.onGround = false;
 			Hc.AffectedByGravity(false);
-			DashSlashMain.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			DashSlashMain.StartAtk();
 		});
 		slashState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -475,8 +475,7 @@ internal static class Moveset {
 			else
 				Hc.FaceRight();
 
-			DashSlashLunge.GameObject!.GetComponent<DamageEnemies>()
-				.SetDirectionByHeroFacing();
+			DashSlashLunge.Get<DamageEnemies>().SetDirectionByHeroFacing();
 		});
 		altWallSlashState.AddAction(new NextFrameEvent());
 		altWallSlashState.AddTransition(FsmEvent.Finished.name, lungeAnticState.name);
@@ -501,7 +500,7 @@ internal static class Moveset {
 		lungeAnticState.AddTransition(FsmEvent.Finished.name, lungeSlashState.name);
 
 		lungeSlashState.AddMethod(() => {
-			DashSlashLunge.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
+			DashSlashLunge.StartAtk();
 			Hc.audioCtrl.PlaySound(HeroSounds.DASH);
 			Hc.StartDownspikeInvulnerability();
 		});
@@ -529,7 +528,7 @@ internal static class Moveset {
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(true);
 		});
-		lungeMissState.AddTransition("FINISHED", continueSprintState.name);
+		lungeMissState.AddTransition(FsmEvent.Finished.name, continueSprintState.name);
 
 		lungeBounceState.AddMethod(() => {
 			Hc.rb2d.linearVelocity = Vector2.zero;
@@ -537,7 +536,7 @@ internal static class Moveset {
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
-			DashSlashLunge.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
+			DashSlashLunge.CancelAtk();
 		});
 
 		#endregion
@@ -548,6 +547,8 @@ internal static class Moveset {
 	#endregion
 
 	#region Charged Slash
+
+	static ChargedAttack.Step[] ChargeSteps => Moves.ChargedSlash!.Steps;
 
 	private static void ChargedSlash() {
 		Config.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
@@ -606,7 +607,7 @@ internal static class Moveset {
 
 			var sound = GetCrest("Shaman").ChargeSlash.GetComponent<PlayRandomAudioEvent>()
 				.audioEvent.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
-			foreach (var step in Moves.ChargedSlash!.Steps)
+			foreach (var step in ChargeSteps)
 				step.Sound = sound;
 		}
 	}
@@ -616,15 +617,22 @@ internal static class Moveset {
 
 		FsmState
 			slashState = fsm.AddState($"{SifId} Attack Starting"),
-			oneState = fsm.AddState($"{SifId} Attack Step 1"),
-			twoState = fsm.AddState($"{SifId} Attack Step 2"),
-			threeState = fsm.AddState($"{SifId} Attack Step 3"),
 			recoveryState = fsm.AddState($"{SifId} Recovery");
+
+		FsmState[] chain = [
+			.. ChargeSteps.Select((x, i) => fsm.AddState($"{SifId} Step {i}")),
+			recoveryState
+		];
 
 		fsm.GetState("Cancel All")!.AddMethod(Hc.AllowRecoil);
 
 		// ANTIC
-		startState.AddMethod(Hc.SpriteFlash.flashFocusHeal);
+		startState.AddMethod(() => {
+			Hc.SpriteFlash.flashFocusHeal();
+			Moves.ChargedSlash!.GameObject!.SetActive(true);
+			foreach (var step in ChargeSteps)
+				step.CancelAtk();
+		});
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
 				gameObject = ownerHornet,
@@ -653,45 +661,19 @@ internal static class Moveset {
 				animationTriggerEvent = FsmEvent.Finished,
 			}
 		);
-		slashState.AddTransition(FsmEvent.Finished.name, oneState.name);
+		slashState.AddTransition(FsmEvent.Finished.name, chain[0].name);
 
-		// FIRST
-		oneState.AddMethod(() => {
-			Moves.ChargedSlash!.GameObject!.SetActive(true);
-			Moves.ChargedSlash!.Steps[0].GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-		});
-		oneState.AddAction(
-			new Tk2dWatchAnimationEvents {
-				gameObject = ownerHornet,
-				animationTriggerEvent = FsmEvent.Finished
-			}
-		);
-		oneState.AddTransition(FsmEvent.Finished.name, twoState.name);
-
-		// SECOND
-		twoState.AddMethod(() =>
-			Moves.ChargedSlash!.Steps[1].GameObject!.SendMessage(nameof(NailSlash.StartSlash))
-		);
-		twoState.AddAction(
-			new Tk2dWatchAnimationEvents {
-				gameObject = ownerHornet,
-				animationTriggerEvent = FsmEvent.Finished,
-			}
-		);
-		twoState.AddTransition(FsmEvent.Finished.name, threeState.name);
-
-		// THIRD
-		threeState.AddMethod(() =>
-			Moves.ChargedSlash!.Steps[2].GameObject!.SendMessage(nameof(NailSlash.StartSlash))
-		);
-		threeState.AddActions(
-			new Tk2dWatchAnimationEvents {
+		// ALL ATTACK STEPS IN SUCCESSION
+		for (int i = 0; i < chain.Length - 1; i++) {
+			var step = ChargeSteps[i];
+			chain[i].AddMethod(step.StartAtk);
+			chain[i].AddAction(new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
 				animationTriggerEvent = FsmEvent.Finished,
 				animationCompleteEvent = FsmEvent.Finished,
-			}
-		);
-		threeState.AddTransition(FsmEvent.Finished.name, recoveryState.name);
+			});
+			chain[i].AddTransition(FsmEvent.Finished.name, chain[i + 1].name);
+		}
 
 		// END
 		recoveryState.AddMethod(Hc.SetStartWithDownSpikeEnd);
