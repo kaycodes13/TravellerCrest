@@ -23,13 +23,17 @@ internal static class Moveset {
 	internal static void RefreshSettings() {
 		var dash = (DashStepPositionable)DashSlashMain;
 		dash.Scale = new(Inst.dashSX, Inst.dashSY);
-		dash.Transform!.Position = new(Inst.dashPX, Inst.dashPY);
-		dash.Transform.Rotation = Quaternion.Euler(0, 0, Inst.dashR);
+		dash.Transform = new() {
+			Position = new(Inst.dashPX, Inst.dashPY),
+			Rotation = Quaternion.Euler(0, 0, Inst.dashR)
+		};
 
 		var pogo = (DownAttackPositionable)Moves.DownSlash!;
 		pogo.Scale = new(Inst.pogoSX, Inst.pogoSY);
-		pogo.Transform!.Position = new(Inst.pogoPX, Inst.pogoPY);
-		pogo.Transform.Rotation = Quaternion.Euler(0, 0, Inst.pogoR);
+		pogo.Transform = new() {
+			Position = new(Inst.pogoPX, Inst.pogoPY),
+			Rotation = Quaternion.Euler(0, 0, Inst.pogoR)
+		};
 
 		if (!Hc) return;
 
