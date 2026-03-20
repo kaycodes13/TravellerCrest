@@ -7,14 +7,15 @@ internal class DashStepPositionable : DashAttack.Step {
 
 	#region API
 
-	public TransformProxy? Transform { get; set; }
+	public TransformProxy? Transform {
+		get => _transform;
+		set { _transform = value; value?.TryInitialize(GameObject); }
+	}
+	private TransformProxy? _transform;
 
 	public KeepPositionProxy? KeepWorldPosition {
 		get => _keepPos;
-		set {
-			_keepPos = value;
-			if (GameObject) _keepPos?.Initialize(GameObject);
-		}
+		set { _keepPos = value; value?.TryInitialize(GameObject); }
 	}
 	private KeepPositionProxy? _keepPos;
 
