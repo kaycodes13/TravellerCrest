@@ -1,7 +1,7 @@
-﻿using Needleforge.Attacks;
+﻿using HutongGames.PlayMaker;
+using Needleforge.Attacks;
+using Silksong.FsmUtil;
 using System;
-using System.Linq;
-using System.Reflection;
 using UnityEngine;
 
 namespace TravellerCrest.Utils;
@@ -13,7 +13,9 @@ namespace TravellerCrest.Utils;
 /// <remarks>
 /// Note to self: Consider adding similar utilities to Needleforge directly, at some point.
 /// </remarks>
-internal static class NeedleforgeUtil {
+internal static class MiscUtil {
+
+	#region Needleforge Objects
 
 	/// <summary>
 	/// Returns the first <typeparamref name="C"/> on this proxy's <see cref="GameObject"/>,
@@ -64,5 +66,28 @@ internal static class NeedleforgeUtil {
 		else
 			fallback?.Invoke(nab);
 	}
+
+	#endregion
+
+	#region FSMs
+
+	/// <summary>
+	/// Add multiple transitions to an FsmState at once. Easier on my eyes.
+	/// </summary>
+	public static void AddTransitions(this FsmState state, params (FsmState dest, string evt)[] transitions) {
+		foreach (var (dest, evt) in transitions)
+			state.AddTransition(evt, dest.name);
+	}
+
+	/// <summary>
+	/// Add multiple transitions to an FsmState at once. Easier on my eyes.
+	/// </summary>
+	public static void AddTransitions(this FsmState state, params (FsmState dest, string[] evts)[] transitions) {
+		foreach (var (dest, evts) in transitions)
+			foreach(var e in evts)
+				state.AddTransition(e, dest.name);
+	}
+
+	#endregion
 
 }
