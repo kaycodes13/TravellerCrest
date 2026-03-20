@@ -13,7 +13,7 @@ namespace TravellerCrest.Mechanics;
 internal static class LowHPToolDamageBonus {
 
 	// 0.53 gives a maximum bonus of 1.5x at 9 masks missing - similar to hunter crest bonus
-	private static float DAMAGE_SCALING => Playtesting.toolDamageMultiplier.Value;
+	private static float DAMAGE_SCALING => Inst.toolDamageMultiplier.Value;
 
 	private static float CurrentBonus() {
 		int missing = PlayerData.instance.maxHealth - PlayerData.instance.health;

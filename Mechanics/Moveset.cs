@@ -18,8 +18,27 @@ namespace TravellerCrest.Mechanics;
 internal static class Moveset {
 
 	private const float STUN_DAMAGE = 0.8f;
-	private static float DOWN_ATTACK_GAP => Playtesting.downAttackTimeGap.Value;
-	private static float DOWN_ATTACK_FIRST_HIT_YVEL => Playtesting.downAttackHitVel.Value;
+
+	internal static void RefreshSettings() {
+		var dash = (DashStepPositionable)DashSlashMain;
+		dash.Scale = new(Inst.dashSX, Inst.dashSY);
+		dash.Transform!.Position = new(Inst.dashPX, Inst.dashPY);
+		dash.Transform.Rotation = Quaternion.Euler(0, 0, Inst.dashR);
+
+		var pogo = (DownAttackPositionable)Moves.DownSlash!;
+		pogo.Scale = new(Inst.pogoSX, Inst.pogoSY);
+		pogo.Transform!.Position = new(Inst.pogoPX, Inst.pogoPY);
+		pogo.Transform.Rotation = Quaternion.Euler(0, 0, Inst.pogoR);
+
+		if (!Hc) return;
+
+		var charge = Moves.ChargedSlash!.GameObject!.transform;
+		charge.SetScale2D(new(Inst.chargeSX, Inst.chargeSY));
+		charge.SetLocalPositionAndRotation(
+			new(Inst.chargePX, Inst.chargePY, 0),
+			Quaternion.Euler(0, 0, Inst.chargeR)
+		);
+	}
 
 	const string ALT_WALL_SLASH_EVENT = "TRAVELLER LUNGE";
 
@@ -609,6 +628,7 @@ internal static class Moveset {
 				.audioEvent.Clips.FirstOrDefault(x => x.name == "hornet_shaman_needle_art");
 			foreach (var step in Moves.ChargedSlash!.Steps)
 				step.Sound = sound;
+			RefreshSettings();
 		}
 	}
 

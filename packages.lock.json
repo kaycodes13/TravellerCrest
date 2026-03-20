@@ -73,20 +73,19 @@
       "Silksong.GameLibs": {
         "type": "Direct",
         "requested": "[*-*, )",
-        "resolved": "1.2.0-silksong1.0.29315",
-        "contentHash": "MwcUC0FMUn7aCwYHWgQegOBxNGgNBDie9nfg0GeodqbnfrHOjUZ06sZjq+0Iiz9/WBL8yd511YZujFS91FgVMw=="
+        "resolved": "1.2.0-silksong1.0.29926",
+        "contentHash": "53CtxInuijj4nLnLL9oL6X6aQir/x6dxZha14dFaMzfa5WnO4kjhyto8EevONKVhsL6b+yXbinwkGOsV0Qtuag=="
       },
       "Silksong.ModMenu": {
         "type": "Direct",
-        "requested": "[0.2.0, )",
-        "resolved": "0.2.0",
-        "contentHash": "4DPSOVaF7mZoHPyfF+hqI0BCm+OAZJpj9566ZwE93YmUZADf/6OlmI1jGY3/mHkRFrshwUpVdhE8okPZ06hpUQ==",
+        "requested": "[0.4.4, )",
+        "resolved": "0.4.4",
+        "contentHash": "VrXaB1K4FCaNfvMlIDlj/cPaSNrD6hIrGKq19FtwTRkGzlkY4TmRhvVtwJkP7csPveDy207y6ODX9iTjox9x4w==",
         "dependencies": {
           "BepInEx.Core": "5.4.21",
           "HarmonyX": "2.9.0",
-          "MonoDetour": "0.7.5",
-          "MonoDetour.HookGen": "0.7.3",
-          "Silksong.UnityHelper": "1.0.1",
+          "MonoDetour": "0.7.13",
+          "Silksong.UnityHelper": "1.1.1",
           "UnityEngine.Modules": "6000.0.50"
         }
       },
@@ -124,24 +123,15 @@
       },
       "Mono.Cecil": {
         "type": "Transitive",
-        "resolved": "0.11.5",
-        "contentHash": "fxfX+0JGTZ8YQeu1MYjbBiK2CYTSzDyEeIixt+yqKKTn7FW8rv7JMY70qevup4ZJfD7Kk/VG/jDzQQTpfch87g=="
+        "resolved": "0.11.4",
+        "contentHash": "IC1h5g0NeJGHIUgzM1P82ld57knhP0IcQfrYITDPXlNpMYGUrsG5TxuaWTjaeqDNQMBDNZkB8L0rBnwsY6JHuQ=="
       },
       "MonoDetour": {
         "type": "Transitive",
-        "resolved": "0.7.5",
-        "contentHash": "jbEm9x1VJVWurAKTiA8z7Ugb+N5ktH0jgvoIguVvn7tWwZ2COkfURN5ZaIM0bUG8Ze0S5OEIKXl5/bs5sYJj8g==",
+        "resolved": "0.7.13",
+        "contentHash": "A1v0WMKfTbRv3O1l6Myel56AGWfC1SRaXvkXqhLgHL31sttxwMww/ncJS9jpsclqs4hPx8zqcM29AkrqM8WDAg==",
         "dependencies": {
-          "Mono.Cecil": "0.11.5",
           "MonoMod.RuntimeDetour": "21.12.13.1"
-        }
-      },
-      "MonoDetour.HookGen": {
-        "type": "Transitive",
-        "resolved": "0.7.3",
-        "contentHash": "82nNksQf2HHpoTt0QhWY+uWCkA9gYE4H+7fbBI2IOa+TVe4In838/XogX/5Lx6EhXXF58qV4XWvwFxmmdg/YQw==",
-        "dependencies": {
-          "MonoDetour": "0.5.0"
         }
       },
       "MonoMod.RuntimeDetour": {

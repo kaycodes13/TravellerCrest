@@ -20,8 +20,6 @@ internal class DownAttackPositionable : DownAttack {
 
 	#endregion
 
-	protected KeepWorldPosition? keepWorldPos;
-
 	// Needed because we're destroying the HDA component this prop normally pulls from
 	protected override NailAttackBase? NailAttack =>
 		GameObject ? GameObject.GetComponent<NailAttackBase>() : null;
