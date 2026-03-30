@@ -33,50 +33,40 @@ internal static class LowHPToolDamageBonus {
 		IEnumerable<CodeInstruction> instructions
 	) {
 		return new CodeMatcher(instructions)
-			#region Flintslate and Pollip Pouch
+			// Flintslate and Pollip Pouch
 			.Start()
 			.MatchEndForward([
-				new(x => CallRelaxed(x, $"get_{nameof(DamageEnemies.NailImbuement)}")),
+				new(x => Call(x, $"get_{nameof(DamageEnemies.NailImbuement)}")),
 				new(x => Ldfld(x, nameof(NailImbuementConfig.NailDamageMultiplier))),
-				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+				new(x => Callvirt(x, nameof(DamageStack.AddMultiplier))),
 			])
-			.Insert([
-				new(OpCodes.Ldarg_0),
-				Transpilers.EmitDelegate(ApplyBonus),
-			])
-			#endregion
+			.Insert(BonusDamageInstructions())
 
-			#region Barbed Bracelet
+			// Barbed Bracelet
 			.Start()
 			.MatchEndForward([
-				new(x => CallRelaxed(x, $"get_{nameof(Gameplay.BarbedWireDamageDealtMultiplier)}")),
-				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+				new(x => Call(x, $"get_{nameof(Gameplay.BarbedWireDamageDealtMultiplier)}")),
+				new(x => Callvirt(x, nameof(DamageStack.AddMultiplier))),
 			])
-			.Insert([
-				new(OpCodes.Ldarg_0),
-				Transpilers.EmitDelegate(ApplyBonus),
-			])
-			#endregion
+			.Insert(BonusDamageInstructions())
 
-			#region Volt Filament
+			// Volt Filament
 			.Start()
 			.MatchEndForward([
-				new(x => CallRelaxed(x, $"get_{nameof(Gameplay.ZapDamageMult)}")),
-				new(x => CallRelaxed(x, nameof(DamageStack.AddMultiplier))),
+				new(x => Call(x, $"get_{nameof(Gameplay.ZapDamageMult)}")),
+				new(x => Callvirt(x, nameof(DamageStack.AddMultiplier))),
 			])
-			.Insert([
-				new(OpCodes.Ldarg_0),
-				Transpilers.EmitDelegate(ApplyBonus),
-			])
-			#endregion
+			.Insert(BonusDamageInstructions())
 
 			.InstructionEnumeration();
 
-		static float ApplyBonus(float multiplier, DamageEnemies self) {
-			if (SifCrest.IsEquipped && (self.isHeroDamage || self.sourceIsHero)) 
-				return multiplier * CurrentBonus();
-			return multiplier;
-		}
+		static CodeInstruction[] BonusDamageInstructions()
+			=> [new(OpCodes.Ldarg_0), Transpilers.EmitDelegate(ApplyBonus)];
+
+		static float ApplyBonus(float multiplier, DamageEnemies self)
+			=> (SifCrest.IsEquipped && (self.isHeroDamage || self.sourceIsHero)) 
+				? multiplier * CurrentBonus()
+				: multiplier;
 	}
 
 	[HarmonyPatch(typeof(HealthManager), "TakeDamage")]
