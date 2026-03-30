@@ -2,6 +2,7 @@
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
+using TeamCherry.SharedUtils;
 using TravellerCrest.Data;
 using TravellerCrest.Utils;
 using UnityEngine;
@@ -19,14 +20,14 @@ internal static class EnemiesDropToolRefills {
 	private static float REFILL_PERCENT => Inst.percentToolsRefilled.Value;
 
 
-	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.Awake))]
+	[HarmonyPatch(typeof(HealthManager), "Awake")]
 	[HarmonyPostfix]
 	private static void EnemyDeathDrop(HealthManager __instance) {
 		if (__instance.GetComponent<PersistentBoolItem>())
 			__instance.OnDeath += () => SpawnRefillItems(DROP_RATE_NORMAL, __instance);
 	}
 
-	[HarmonyPatch(typeof(HealthManager.StealLagHit), nameof(HealthManager.StealLagHit.OnEnd))]
+	[HarmonyPatch(typeof(HealthManager.StealLagHit), "OnEnd")]
 	[HarmonyPostfix]
 	private static void SnitchPickDrop(HealthManager.StealLagHit __instance) {
 		if (__instance.healthManager.GetComponent<PersistentBoolItem>())
@@ -54,9 +55,9 @@ internal static class EnemiesDropToolRefills {
 			.Where(x => x && x.IsAttackType() && x.HasLimitedUses());
 
 		foreach (ToolItem tool in eligibleTools) {
-			int capacity = ToolItemManager.GetToolStorageAmount(tool),
-				remaining = PlayerData.instance.Tools.GetData(tool.name).AmountLeft;
-			float missingPercent = (float)(capacity - remaining) / capacity,
+			int capacity = ToolItemManager.GetToolStorageAmount(tool);
+			float remaining = PlayerData.instance.Tools.GetData(tool.name).AmountLeft,
+				missingPercent = 1 - remaining/capacity,
 				scaledDropRate = dropRate * missingPercent;
 
 			if (!ProbabilityUtils.GetRandomBool(scaledDropRate))
@@ -66,27 +67,19 @@ internal static class EnemiesDropToolRefills {
 			if (amount <= 0)
 				continue;
 
-			RefillItem refill = ScriptableObject.CreateInstance<RefillItem>();
+			var refill = ScriptableObject.CreateInstance<RefillItem>();
 			refill.tool = tool;
 			refill.amountRefunded = amount;
-
-			Vector3 spawnPoint = origin.transform.TransformPoint(origin.effectOrigin);
 
 			GameObject item = ObjectPool.Spawn(
 				prefab: Gameplay.CollectableItemPickupInstantPrefab.gameObject,
 				parent: null,
-				position: spawnPoint,
+				position: origin.transform.TransformPoint(origin.effectOrigin),
 				rotation: Quaternion.identity
 			);
-			item.GetComponent<CollectableItemPickup>().SetItem(refill);
-
-			FlingUtils.FlingObject(new FlingUtils.SelfConfig {
-				Object = item,
-				SpeedMin = 15f,
-				SpeedMax = 30f,
-				AngleMin = 80f,
-				AngleMax = 100f,
-			}, origin.transform, origin.effectOrigin);
+			var pickup = item.GetComponent<CollectableItemPickup>();
+			pickup.SetItem(refill);
+			pickup.FlingSelf(speed: new(15, 30), angle: new(75, 105));
 		}
 	}
 

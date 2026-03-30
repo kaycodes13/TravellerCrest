@@ -3,7 +3,6 @@ using Silksong.UnityHelper.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using TravellerCrest.Components;
 using TravellerCrest.Utils;
 using UnityEngine;
 using UObject = UnityEngine.Object;
@@ -15,15 +14,12 @@ namespace TravellerCrest.Data;
 internal static class AnimationManager {
 
 	internal static readonly tk2dSpriteCollectionData spriteCollection;
-
 	internal static readonly Dictionary<string, tk2dSpriteAnimation> libraries = [];
-
 	internal static tk2dSpriteAnimation MainLib => libraries["main"];
 
-	private const string path = $"{nameof(TravellerCrest)}.Assets.Animations";
-
-	private static bool hasSetupHero = false;
-	private static readonly AnimLibrary<HeroAnimDef>[] heroLibs;
+	const string path = $"{nameof(TravellerCrest)}.Assets.Animations";
+	static bool hasSetupHero = false;
+	static readonly AnimLibrary<HeroAnimDef>[] heroLibs;
 
 	static AnimationManager() {
 		var frameDatas = AssetUtil.ReadJson<CustomSpriteDef[]>($"{path}.CustomSpriteDefs.json");
@@ -40,12 +36,7 @@ internal static class AnimationManager {
 		spriteCollection.hideFlags = HideFlags.HideAndDontSave;
 		spriteCollection.gameObject.name = $"{SifId} Cln";
 
-		//var mat = spriteCollection.material;
-		//mat.shader = GlobalSettings.Effects.DefaultUnlitMaterial.shader;
-		//mat.mainTexture = newtex;
-
 		var animLibs = AssetUtil.ReadJson<AnimLibrary<CustomAnimDef>[]>($"{path}.CustomAnimDefs.json");
-
 		foreach (var libData in animLibs)
 			libData.Initialize();
 
@@ -53,16 +44,38 @@ internal static class AnimationManager {
 	}
 
 	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Awake))]
-	[HarmonyPostfix]
+	[HarmonyPrefix]
 	public static void SetupHeroAnims() {
 		if (hasSetupHero)
 			return;
-		hasSetupHero = true;
-
 		foreach (var libData in heroLibs)
 			libData.Initialize();
+		hasSetupHero = true;
 	}
 
+	/// <summary>
+	/// Returns the duration in seconds of a managed animation clip. If the duration
+	/// can't be determined the value will be < 0.
+	/// </summary>
+	/// <param name="name">Name of the clip to measure.</param>
+	/// <param name="libName">Optional library to search for the clip in. Default is <see cref="MainLib"/>.</param>
+	public static float GetClipDuration(string name, string libName = "main") {
+		if (libraries.TryGetValue(libName, out var l) && l.lookup.TryGetValue(name, out var c))
+			return c.clip.Duration;
+
+		if (hasSetupHero) return -1;
+
+		int i = Array.FindIndex(heroLibs, x => x.Name == libName);
+		if (i == -1) return -1;
+
+		int j = Array.FindIndex(heroLibs[i].Anims, x => x.Name == name);
+		if (j == -1) return -1;
+
+		var def = heroLibs[i].Anims[j];
+		if (def.Fps <= 0) return -1;
+
+		return def.FrameCount() / def.Fps;
+	}
 
 	/// <summary>
 	/// Serializable group of animation definitions, which can be initialized to convert
@@ -80,20 +93,12 @@ internal static class AnimationManager {
 				libraries[Name] = library = libobj.AddComponent<tk2dSpriteAnimation>();
 				library.clips = [];
 				library.ValidateLookup();
-
-				#if DEBUG
-				libobj.AddComponent<RedoTriggers>();
-				#endif
 			}
 
-			var newAnims = Anims
-				.Where(x => !library.lookup.ContainsKey(x.Name))
-				.Select(x => x.MakeClip());
+			var clips = from x in Anims where !library.lookup.ContainsKey(x.Name)
+						select x.MakeClip();
 
-			library.clips = [
-				.. library.clips,
-				.. newAnims
-			];
+			library.clips = [.. library.clips, .. clips];
 			library.isValid = false;
 			library.ValidateLookup();
 		}
@@ -126,13 +131,34 @@ internal static class AnimationManager {
 	///	</param>
 	[Serializable]
 	private record struct HeroAnimDef
-		(string Name, int Fps, WrapMode WrapMode, int LoopStart, int[] Triggers,
+		(string Name, float Fps, WrapMode WrapMode, int LoopStart, int[] Triggers,
 		HeroFrameDef? Copy, HeroFrameDef[] Composite)
 		: IAnimDef {
 
 		readonly string IAnimDef.Name {
 			get => Name ?? Copy?.Name ?? "";
 			set => _ = value;
+		}
+
+		/// <returns>
+		/// The number of frames in the animation, or -1 if the count is unclear.
+		/// </returns>
+		internal readonly int FrameCount() {
+			if (Composite == null || Composite.Length <= 0)
+				return -1;
+
+			int frames = 0;
+			foreach (var def in Composite) {
+				if (def.Frame == null && (def.Start == null || def.End == null))
+					return -1;
+
+				int start = def.Frame ?? def.Start ?? 0,
+					end = def.Frame ?? def.End ?? 0,
+					repeats = def.Repeat ?? 1;
+
+				frames += (end - start + 1) * repeats;
+			}
+			return frames;
 		}
 
 		readonly tk2dSpriteAnimationClip IAnimDef.MakeClip() {
@@ -187,7 +213,7 @@ internal static class AnimationManager {
 					=> ToolItemManager.GetCrestByName(frameDef.Crest).HeroConfig
 						.heroAnimOverrideLib,
 				"Hunter" or _
-					=> HeroController.instance.animCtrl.animator.Library
+					=> HeroController.instance.GetComponent<tk2dSpriteAnimator>().Library
 			}).GetClipByName(frameDef.Name);
 
 		private static tk2dSpriteAnimationFrame CopyFrame(tk2dSpriteAnimationFrame source)
@@ -227,7 +253,7 @@ internal static class AnimationManager {
 	/// <param name="Triggers">List of frame indexes which should trigger an event.</param>
 	[Serializable]
 	private record struct CustomAnimDef
-		(string Name, int Fps, WrapMode WrapMode, string[] Frames, int[] Triggers)
+		(string Name, float Fps, WrapMode WrapMode, string[] Frames, int[] Triggers)
 		: IAnimDef {
 
 		readonly tk2dSpriteAnimationClip IAnimDef.MakeClip() {
@@ -237,9 +263,9 @@ internal static class AnimationManager {
 				wrapMode = WrapMode,
 				frames = spriteCollection.CreateFrames(Frames),
 			};
-			foreach (int index in Triggers) {
-				anim.frames[index].triggerEvent = true;
-			}
+			if (Triggers != null)
+				foreach (int index in Triggers)
+					anim.frames[index].triggerEvent = true;
 			return anim;
 		}
 	}

@@ -13,28 +13,24 @@ namespace TravellerCrest.Components;
 /// </remarks>
 [RequireComponent(typeof(SoftMask))]
 internal class SoftMaskFixer : MonoBehaviour {
+	SoftMask? mask;
+	int width = Screen.width, height = Screen.height;
+	Resolution res = Screen.currentResolution;
 
-	private SoftMask? mask;
-	private int screenWidth = Screen.width, screenHeight = Screen.height;
-	private Resolution screenRes = Screen.currentResolution;
-
-	private void Update() {
+	void Update() {
 		if (
-			screenWidth != Screen.width || screenHeight != Screen.height
-			|| screenRes.width != Screen.currentResolution.width
-			|| screenRes.height != Screen.currentResolution.height
+			width != Screen.width || height != Screen.height
+			|| res.width != Screen.currentResolution.width
+			|| res.height != Screen.currentResolution.height
 		) {
-			screenWidth = Screen.width;
-			screenHeight = Screen.height;
-			screenRes = Screen.currentResolution;
+			(width, height, res) = (Screen.width, Screen.height, Screen.currentResolution);
 			OnRectTransformDimensionsChange();
 		}
 	}
 
-	private void OnRectTransformDimensionsChange() {
+	void OnRectTransformDimensionsChange() {
 		if (!mask)
 			mask = GetComponent<SoftMask>();
-
 		if (gameObject.activeInHierarchy) {
 			foreach (Transform child in transform) {
 				child.gameObject.SetActive(false);
@@ -44,5 +40,4 @@ internal class SoftMaskFixer : MonoBehaviour {
 			mask.enabled = true;
 		}
 	}
-
 }

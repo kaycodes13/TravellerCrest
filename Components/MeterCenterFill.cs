@@ -22,7 +22,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			UpdateMeter();
 		}
 	}
-	private float _val = 0;
+	float _val = 0;
 
 	/// <summary>
 	/// Minimum value of the meter. Default 0.
@@ -34,7 +34,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			UpdateMeter();
 		}
 	}
-	private float _mn = 0;
+	float _mn = 0;
 
 	/// <summary>
 	/// Maximum value of the meter. Default 1.
@@ -46,7 +46,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			UpdateMeter();
 		}
 	}
-	private float _mx = 1;
+	float _mx = 1;
 
 	/// <summary>
 	/// Optional function determining how the scale of the meter fill sprite is affected
@@ -70,7 +70,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			if (backMaskGo) backMaskGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite? _fill;
+	Sprite? _fill;
 
 	/// <summary>
 	/// Sprite used to soft-mask <see cref="Fill"/> when the meter is partially full.
@@ -82,7 +82,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			if (fillMaskGo) fillMaskGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite? _fillMask;
+	Sprite? _fillMask;
 
 	/// <summary>
 	/// Sprite to use for the back of the unfilled meter.
@@ -94,7 +94,7 @@ internal class MeterCenterFill : MonoBehaviour {
 			if (backGo) backGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite? _backboard;
+	Sprite? _backboard;
 
 	/// <summary>
 	/// Lineart sprite on top of the meter to hide its edge.
@@ -106,18 +106,18 @@ internal class MeterCenterFill : MonoBehaviour {
 			if (lineGo) lineGo.GetComponent<Image>().sprite = value;
 		}
 	}
-	private Sprite? _line;
+	Sprite? _line;
 
-	private Coroutine? valueCoro;
+	Coroutine? valueCoro;
 
-	private GameObject
+	GameObject
 		lineGo,
 		fillMaskGo,
 		fillGo,
 		backMaskGo,
 		backGo;
 
-	private void Awake() {
+	void Awake() {
 		var canvas = gameObject.GetOrAddComponent<Canvas>();
 		canvas.worldCamera = GameManager.instance.gameCams.hudCamera;
 
@@ -145,16 +145,14 @@ internal class MeterCenterFill : MonoBehaviour {
 		AddImage(lineGo, Line, maskable: false);
 	}
 
-	private void Start() {
-		gameObject.GetComponent<Canvas>().sortingLayerName = "Over";
-	}
+	void Start()
+		=> gameObject.GetComponent<Canvas>().sortingLayerName = "Over";
 
-	private void UpdateMeter() {
+	void UpdateMeter() {
 		if (!fillMaskGo)
 			return;
 
 		float valueScale = (ValueToScaleFn ?? ValueToScaleLinear).Invoke(Value, Min, Max);
-
 		var sizer = fillMaskGo.GetComponent<LockToPreferredSize>();
 
 		if (Mathf.Approximately(valueScale, sizer.Scale))
@@ -174,10 +172,10 @@ internal class MeterCenterFill : MonoBehaviour {
 		}
 	}
 
-	private static float ValueToScaleLinear(float val, float minVal, float maxVal)
+	static float ValueToScaleLinear(float val, float minVal, float maxVal)
 		=> (val - minVal) / (maxVal - minVal);
 
-	private static GameObject NewGO(string name, Transform parent) {
+	static GameObject NewGO(string name, Transform parent) {
 		GameObject go = new(name) { layer = (int)PhysLayers.UI };
 		go.transform.parent = parent;
 		go.transform.localScale = Vector3.one;
@@ -185,7 +183,7 @@ internal class MeterCenterFill : MonoBehaviour {
 		return go;
 	}
 
-	private static void AddImage(GameObject go, Sprite? sprite, bool maskable) {
+	static void AddImage(GameObject go, Sprite? sprite, bool maskable) {
 		var img = go.AddComponent<Image>();
 		img.preserveAspect = true;
 		img.maskable = maskable;

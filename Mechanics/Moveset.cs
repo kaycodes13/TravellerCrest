@@ -5,7 +5,7 @@ using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
 using Silksong.FsmUtil;
-using System;
+using System.Collections;
 using System.Linq;
 using TravellerCrest.Attacks;
 using TravellerCrest.Data;
@@ -18,33 +18,22 @@ namespace TravellerCrest.Mechanics;
 [HarmonyPatch]
 internal static class Moveset {
 
-	private const float STUN_DAMAGE = 0.8f;
 
 	internal static void RefreshSettings() {
-		var dash = (DashStepPositionable)DashSlashMain;
-		dash.Scale = new(Inst.dashSX, Inst.dashSY);
-		dash.Transform = new() {
-			Position = new(Inst.dashPX, Inst.dashPY),
-			Rotation = Quaternion.Euler(0, 0, Inst.dashR)
-		};
+		DashSlashMain.Scale = new(Inst.dashSX, Inst.dashSY);
+		DashSlashMain.Position = new(Inst.dashPX, Inst.dashPY);
+		DashSlashMain.Rotation = Quaternion.Euler(0, 0, Inst.dashR);
 
-		var pogo = (DownAttackPositionable)Moves.DownSlash!;
-		pogo.Scale = new(Inst.pogoSX, Inst.pogoSY);
-		pogo.Transform = new() {
-			Position = new(Inst.pogoPX, Inst.pogoPY),
-			Rotation = Quaternion.Euler(0, 0, Inst.pogoR)
-		};
+		Moves.DownSlash!.Scale = new(Inst.pogoSX, Inst.pogoSY);
+		Moves.DownSlash!.Position = new(Inst.pogoPX, Inst.pogoPY);
+		Moves.DownSlash!.Rotation = Quaternion.Euler(0, 0, Inst.pogoR);
 
-		if (!Hc) return;
-
-		var charge = Moves.ChargedSlash!.GameObject!.transform;
-		charge.SetScale2D(new(Inst.chargeSX, Inst.chargeSY));
-		charge.SetLocalPositionAndRotation(
-			new(Inst.chargePX, Inst.chargePY, 0),
-			Quaternion.Euler(0, 0, Inst.chargeR)
-		);
+		Moves.ChargedSlash!.Scale = new(Inst.chargeSX, Inst.chargeSY);
+		Moves.ChargedSlash!.Position = new(Inst.chargePX, Inst.chargePY, 0);
+		Moves.ChargedSlash!.Rotation = Quaternion.Euler(0, 0, Inst.chargeR);
 	}
 
+	const float STUN_DAMAGE = 0.8f;
 	const string ALT_WALL_SLASH_EVENT = "TRAVELLER LUNGE";
 
 	static readonly Vector2[] JUST_ATTACK_HITBOX = [
@@ -81,7 +70,7 @@ internal static class Moveset {
 		ChargedSlash();
 	}
 
-	private static void SimpleAttacks() {
+	static void SimpleAttacks() {
 		Config.wallSlashSlowdown = false;
 		Config.SetAttackFields(
 			time: 0.25f, recovery: 0.1f, cooldown: 0.3f,
@@ -103,7 +92,7 @@ internal static class Moveset {
 			StunDamage = STUN_DAMAGE,
 		};
 
-		Moves.AltSlash = new AttackPositionable {
+		Moves.AltSlash = new Attack {
 			Name = "NeutralAlt",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffectAlt",
@@ -116,12 +105,10 @@ internal static class Moveset {
 			],
 			StunDamage = STUN_DAMAGE,
 			Scale = new(0.8f, 1.3f),
-			Transform = new() {
-				Position = new(-0.18f, 0.38f)
-			},
+			Position = new(-0.18f, 0.38f),
 		};
 
-		Moves.UpSlash = new AttackPositionable {
+		Moves.UpSlash = new Attack {
 			Name = "Up",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffect",
@@ -135,13 +122,11 @@ internal static class Moveset {
 			],
 			StunDamage = STUN_DAMAGE,
 			Scale = new(0.7f, -1.15f),
-			Transform = new() {
-				Position = new(-0.03f, 0.22f),
-				Rotation = Quaternion.Euler(0, 0, -90)
-			},
+			Position = new(-0.03f, 0.22f),
+			Rotation = Quaternion.Euler(0, 0, -90),
 		};
 
-		Moves.WallSlash = new AttackPositionable {
+		Moves.WallSlash = new Attack {
 			Name = "Wall",
 			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "SlashEffectAlt",
@@ -154,9 +139,7 @@ internal static class Moveset {
 			],
 			StunDamage = STUN_DAMAGE,
 			Scale = new(0.9f, 1.3f),
-			Transform = new() {
-				Position = new(0.24f, 0.43f)
-			},
+			Position = new(0.24f, 0.43f),
 		};
 
 		Moves.OnInitialized += SimpleAttackInit;
@@ -171,9 +154,9 @@ internal static class Moveset {
 
 	#region Alt Wall Slash
 
-	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Attack))]
+	[HarmonyPatch(typeof(HeroController), "Attack")]
 	[HarmonyPostfix]
-	private static void AltWallSlash(HeroController __instance, AttackDirection attackDir) {
+	static void AltWallSlash(HeroController __instance, AttackDirection attackDir) {
 		if (!SifCrest.IsEquipped)
 			return;
 
@@ -187,7 +170,7 @@ internal static class Moveset {
 				|| (hc.touchingWallR && input.Right.IsPressed);
 
 		if (wallSliding && !pressingTowardWall && attackDir == AttackDirection.normal) {
-			Moves.WallSlash!.CancelAtk();
+			Moves.WallSlash!.EndAttack();
 			Moves.WallSlash!.Get<AudioSource>().Stop(true);
 			hc.wallSlashing = false;
 			hc.SlashComponent = null;
@@ -200,119 +183,45 @@ internal static class Moveset {
 
 	#region Down Slash
 
-	private static void DownSlash() {
-		Config.SetDownspikeFields(recoveryTime: 0.24f);
-		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
+	static void DownSlash() {
+		Config.downSlashType = HeroControllerConfig.DownSlashTypes.DownSpike;
+		Config.SetDownspikeFields(
+			anticTime: AnimationManager.GetClipDuration("DownSpike Antic"),
+			time: AnimationManager.GetClipDuration("DownSpike"),
+			recoveryTime: 0.2f,
+			velocity: new Vector2(8, 14),
+			acceleration: new Vector2(-25f, Physics2D.gravity.y),
+			doesThrust: true,
+			doesBurstEffect: false
+		);
 
-		Moves.DownSlash = new DownAttackPositionable {
+		Moves.DownSlash = new DownAttack {
 			Name = "Down",
-			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "Slash_Charged Effect",
+			AnimLibrary = AnimationManager.MainLib,
 			Hitbox = JUST_ATTACK_HITBOX,
-			Transform = new() {
-				Position = new(0.05f, -0.15f),
-				Rotation = Quaternion.Euler(0, 0, 40),
-			},
+			Position = new(0.05f, -0.15f),
+			Rotation = Quaternion.Euler(0, 0, 40),
 			KeepWorldPosition = true,
 		};
 
 		Moves.OnInitialized += DownAttackInit;
 		static void DownAttackInit() {
 			Moves.DownSlash!.Sound = GetSound(GetCrest("Shaman").DownSlashObject);
-		}
-	}
+			var nab = Moves.DownSlash!.Get<NailAttackBase>();
+			nab.AttackStarting += () => nab.StartCoroutine(DashCancelCoro());
+		};
 
-	private static void DownslashEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
-		FsmOwnerDefault ownerHornet = new();
-
-		FsmState
-			slashState = fsm.AddState($"{SifId} Downslash"),
-			missState = fsm.AddState($"{SifId} End"),
-			bounceState = fsm.AddState($"{SifId} Bounce"),
-			dashCancelState = fsm.AddState($"{SifId} Dash Cancel");
-
-		startState.AddMethod(() => {
-			fsm.GetBoolVariable("Disabled Animation").Value = true;
-			fsm.GetBoolVariable("In Crest Attack").Value = true;
-			Hc.StopAnimationControl();
-			Hc.RelinquishControlNotVelocity();
-			Hc.AffectedByGravity(false);
-			Hc.QueueCancelDownAttack();
-			Hc.cState.isInCancelableFSMMove = true;
-
-			// Clamp out "downward" velocity in a way compatible with Glissando
-			Func<float, float, float>
-				clampFn = Hc.transform.localScale.y > 0 ? Mathf.Max : Mathf.Min;
-			Hc.rb2d.linearVelocityY = clampFn(0, Hc.rb2d.linearVelocityY);
-		});
-		startState.AddActions([
-			new DecelerateXY {
-				gameObject = ownerHornet,
-				decelerationX = 0.9f,
-				decelerationY = 0.7f,
-			},
-			new Tk2dPlayAnimationWithEvents {
-				gameObject = ownerHornet,
-				clipName = "DownSlash",
-				animationTriggerEvent = FsmEvent.Finished,
-			},
-		]);
-		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
-		AddDashCancel(startState);
-
-		slashState.AddMethod(() => {
-			Hc.AffectedByGravity(true);
-			Hc.cState.downAttacking = true;
-			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.StartSlash));
-		});
-		slashState.AddActions(
-			new SetVelocityByScale {
-				gameObject = ownerHornet,
-				speed = 8,
-				ySpeed = 14,
-			},
-			new DecelerateXY {
-				gameObject = ownerHornet,
-				decelerationX = 0.9f,
-				decelerationY = 1,
-			},
-			new Tk2dWatchAnimationEvents {
-				gameObject = ownerHornet,
-				animationCompleteEvent = FsmEvent.Finished,
+		static IEnumerator DashCancelCoro() {
+			while (Hc.cState.downSpikeAntic || Hc.cState.downSpiking) {
+				yield return null;
+				if (Hc.inputHandler.inputActions.Dash.WasPressed) {
+					Hc.SetStartWithDash();
+					Hc.CancelDownSpike();
+					Hc.RegainControl();
+					yield break;
+				}
 			}
-		);
-		slashState.AddTransitions(
-			(bounceState, ["ATTACK LANDED", "BOUNCE TINKED", "BOUNCE CANCEL"]),
-			(missState, ["LEAVING SCENE"]),
-			(missState, [FsmEvent.Finished.name])
-		);
-		AddDashCancel(slashState);
-
-		missState.AddMethod(() => {
-			Hc.cState.downAttacking = false;
-			Hc.FinishDownspike();
-		});
-
-		bounceState.AddMethod(() => {
-			Hc.rb2d.linearVelocity = Vector2.zero;
-			Hc.SetStartWithDownSpikeBounce();
-		});
-
-		dashCancelState.AddMethod(() => {
-			Moves.DownSlash!.GameObject!.SendMessage(nameof(NailSlash.CancelAttack));
-			Hc.SetStartWithDash();
-		});
-
-		endStates = [missState, bounceState, dashCancelState];
-
-		void AddDashCancel(FsmState state) {
-			FsmEvent dashEvent = FsmEvent.GetFsmEvent("SPRINT");
-			state.AddAction(new ListenForDash {
-				wasPressed = dashEvent,
-				delayBeforeActive = 0f,
-				BlocksFinish = false,
-			});
-			state.AddTransition(dashEvent.name, dashCancelState.name);
 		}
 	}
 
@@ -323,23 +232,21 @@ internal static class Moveset {
 	static DashAttack.Step DashSlashMain => Moves.DashSlash!.Steps[0];
 	static DashAttack.Step DashSlashLunge => Moves.DashSlash!.Steps[1];
 
-	private static void DashSlash() {
+	static void DashSlash() {
 		Config.DashSlashFsmEdit = DashSlashFsmEdit;
 
 		Moves.DashSlash = new DashAttack {
 			Name = "Dash",
 			Steps = [
-				new DashStepPositionable {
+				new DashStepAuto {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
-					Transform = new() {
-						Position = new(-5, 0, 0),
-					},
 					Scale = new(-1, 0.8f),
+					Position = new(-5, 0, 0),
 					KeepWorldPosition = true,
 					StunDamage = STUN_DAMAGE,
 				},
-				new DashStepPositionable {
+				new DashStepAuto {
 					AnimName = "Wanderer RecoilStab Efct",
 					Hitbox = [
 						new(-3.09f, -0.22f),
@@ -348,11 +255,9 @@ internal static class Moveset {
 						new(-0.31f, -1.19f),
 						new(-0.35f, -0.09f),
 					],
-					Transform = new() {
-						Position = new(0.74f, 0.81f),
-						Rotation = Quaternion.Euler(0, 0, 24.84f)
-					},
 					Scale = new(0.99f, 1.16f),
+					Position = new(0.74f, 0.81f),
+					Rotation = Quaternion.Euler(0, 0, 24.84f),
 					StunDamage = STUN_DAMAGE,
 				},
 			]
@@ -363,16 +268,10 @@ internal static class Moveset {
 		static void DashAttackInit() {
 			DashSlashMain.Sound = GetSound(GetCrest("Shaman").NormalSlashObject);
 			DashSlashLunge.Sound = GetSound(GetCrest("Default").DownSlashObject);
-
-			foreach (var step in Moves.DashSlash!.Steps) {
-				var de = step.Get<DamageEnemies>();
-				de.dealtDamageFSM = Hc.sprintFSM;
-				de.dealtDamageFSMEvent = "DASH HIT";
-			}
 		}
 	}
 
-	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+	static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault ownerHornet = new();
 
 		FsmState
@@ -412,7 +311,7 @@ internal static class Moveset {
 		slashState.AddMethod(() => {
 			Hc.cState.onGround = false;
 			Hc.AffectedByGravity(false);
-			DashSlashMain.StartAtk();
+			DashSlashMain.StartAttack();
 		});
 		slashState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -510,7 +409,7 @@ internal static class Moveset {
 		lungeAnticState.AddTransition(FsmEvent.Finished.name, lungeSlashState.name);
 
 		lungeSlashState.AddMethod(() => {
-			DashSlashLunge.StartAtk();
+			DashSlashLunge.StartAttack();
 			Hc.audioCtrl.PlaySound(HeroSounds.DASH);
 			Hc.StartDownspikeInvulnerability();
 		});
@@ -548,7 +447,7 @@ internal static class Moveset {
 			Hc.CrestAttackRecovery();
 			Hc.AffectedByGravity(true);
 			Hc.SetAllowRecoilWhileRelinquished(false);
-			DashSlashLunge.CancelAtk();
+			DashSlashLunge.EndAttack();
 		});
 
 		#endregion
@@ -562,7 +461,7 @@ internal static class Moveset {
 
 	static ChargedAttack.Step[] ChargeSteps => Moves.ChargedSlash!.Steps;
 
-	private static void ChargedSlash() {
+	static void ChargedSlash() {
 		Config.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
 
 		float knockback = 0.1f, damage = 0.6667f;
@@ -573,38 +472,30 @@ internal static class Moveset {
 			PlayStepsInSequence = false,
 			ScreenFlashColors = [new(1, 1, 1, 0.4f)],
 			Steps = [
-				new ChargeStepPositionable {
+				new ChargedAttack.Step {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 0,
 					ScreenFlashIndex = 0,
-					Transform = new() {
-						Position = new(-5.5f, 0, 0),
-					},
 					Scale = new(-1, 1),
+					Position = new(-5.5f, 0, 0),
 					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
-				new ChargeStepPositionable {
+				new ChargedAttack.Step {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
-					CameraShakeIndex = 0,
-					ScreenFlashIndex = 0,
-					Transform = new() {
-						Position = new(0.5f, 0, 0),
-					},
+					Position = new(0.5f, 0, 0),
 					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
-				new ChargeStepPositionable {
+				new ChargedAttack.Step {
 					AnimName = "Slash_Charged Effect",
 					Hitbox = JUST_ATTACK_HITBOX,
 					CameraShakeIndex = 1,
 					ScreenFlashIndex = 0,
-					Transform = new() {
-						Position = new(-5.5f, 0, 0),
-					},
 					Scale = new(-1, 1),
+					Position = new(-5.5f, 0, 0),
 					KnockbackMult = knockback,
 					DamageMult = damage,
 				},
@@ -624,7 +515,7 @@ internal static class Moveset {
 		}
 	}
 
-	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+	static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault ownerHornet = new();
 
 		FsmState
@@ -642,7 +533,7 @@ internal static class Moveset {
 			Hc.SpriteFlash.flashFocusHeal();
 			Moves.ChargedSlash!.GameObject!.SetActive(true);
 			foreach (var step in ChargeSteps)
-				step.CancelAtk();
+				step.EndAttack();
 		});
 		startState.AddActions(
 			new Tk2dPlayAnimationWithEvents {
@@ -675,7 +566,7 @@ internal static class Moveset {
 
 		for (int i = 0; i < chain.Length - 1; i++) {
 			var step = ChargeSteps[i];
-			chain[i].AddMethod(step.StartAtk);
+			chain[i].AddMethod(step.StartAttack);
 			chain[i].AddAction(new Tk2dWatchAnimationEvents {
 				gameObject = ownerHornet,
 				animationTriggerEvent = FsmEvent.Finished,
