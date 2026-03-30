@@ -13,19 +13,23 @@ namespace TravellerCrest.Mechanics;
 internal static class LowHPToolDamageBonus {
 
 	// 0.53 gives a maximum bonus of 1.5x at 9 masks missing - similar to hunter crest bonus
-	private const float DAMAGE_SCALING = 0.53f;
+	const float DAMAGE_SCALING = 0.53f;
 
-	private static float CurrentBonus() {
+	static float CurrentBonus() {
 		int missing = PlayerData.instance.maxHealth - PlayerData.instance.health;
 		return 1 + DAMAGE_SCALING * Mathf.Sqrt(missing / 10f);
 	}
 
-	private static int ApplyBonusToDamage(int damage)
+	static int ApplyBonusToDamage(int damage)
 		=> Mathf.FloorToInt(damage * CurrentBonus());
 
-	[HarmonyPatch(typeof(DamageEnemies), nameof(DamageEnemies.DoDamage), [typeof(GameObject), typeof(bool)])]
+	static bool RepsNonSkillTool(HitInstance hit)
+		=> hit.RepresentingTool && hit.RepresentingTool.Type != ToolItemType.Skill;
+
+
+	[HarmonyPatch(typeof(DamageEnemies), "DoDamage", [typeof(GameObject), typeof(bool)])]
 	[HarmonyTranspiler]
-	private static IEnumerable<CodeInstruction> MultiplyToolMultipliers(
+	static IEnumerable<CodeInstruction> MultiplyToolMultipliers(
 		IEnumerable<CodeInstruction> instructions
 	) {
 		return new CodeMatcher(instructions)
@@ -41,6 +45,7 @@ internal static class LowHPToolDamageBonus {
 				Transpilers.EmitDelegate(ApplyBonus),
 			])
 			#endregion
+
 			#region Barbed Bracelet
 			.Start()
 			.MatchEndForward([
@@ -52,6 +57,7 @@ internal static class LowHPToolDamageBonus {
 				Transpilers.EmitDelegate(ApplyBonus),
 			])
 			#endregion
+
 			#region Volt Filament
 			.Start()
 			.MatchEndForward([
@@ -63,44 +69,34 @@ internal static class LowHPToolDamageBonus {
 				Transpilers.EmitDelegate(ApplyBonus),
 			])
 			#endregion
+
 			.InstructionEnumeration();
 
-		static float ApplyBonus(float multiplier, DamageEnemies instance) {
-			if (SifCrest.IsEquipped && (instance.isHeroDamage || instance.sourceIsHero)) 
+		static float ApplyBonus(float multiplier, DamageEnemies self) {
+			if (SifCrest.IsEquipped && (self.isHeroDamage || self.sourceIsHero)) 
 				return multiplier * CurrentBonus();
 			return multiplier;
 		}
 	}
 
-	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.TakeDamage))]
+	[HarmonyPatch(typeof(HealthManager), "TakeDamage")]
 	[HarmonyPrefix]
-	private static void AffectNormalDamage(ref HitInstance hitInstance) {
-		if (!SifCrest.IsEquipped || !hitInstance.IsHeroDamage)
-			return;
-
-		if ( // is a non-skill tool
-			hitInstance.RepresentingTool
-			&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
-		) {
+	static void AffectNormalDamage(ref HitInstance hitInstance) {
+		if (SifCrest.IsEquipped && hitInstance.IsHeroDamage && RepsNonSkillTool(hitInstance))
 			hitInstance.DamageDealt = ApplyBonusToDamage(hitInstance.DamageDealt);
-		}
 	}
 
-	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.LagHits))]
+	[HarmonyPatch(typeof(HealthManager), "LagHits")]
 	[HarmonyPrefix]
-	private static void AffectLagHits(ref LagHitOptions options, ref HitInstance hitInstance) {
+	static void AffectLagHits(ref LagHitOptions options, ref HitInstance hitInstance) {
 		if (!SifCrest.IsEquipped || !hitInstance.IsHeroDamage)
 			return;
 
 		if (
-			(// is a non-skill tool
-				hitInstance.RepresentingTool
-				&& hitInstance.RepresentingTool.Type != ToolItemType.Skill
-			)
-			||
-			(// is status damage (which we assume is from a tool)
+			RepsNonSkillTool(hitInstance)
+			|| ( // is status damage (which we assume is from a tool)
 				options.DamageType != LagHitDamageType.None
-				|| hitInstance.ToolDamageFlags.HasFlag(ToolDamageFlags.Searing) // just in case, for flintslate
+				|| hitInstance.ToolDamageFlags.HasFlag(ToolDamageFlags.Searing) // flintslate
 			)
 		) {
 			var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
@@ -116,14 +112,12 @@ internal static class LowHPToolDamageBonus {
 		}
 	}
 
-	[HarmonyPatch(typeof(HealthManager), nameof(HealthManager.ApplyTagDamage))]
+	[HarmonyPatch(typeof(HealthManager), "ApplyTagDamage")]
 	[HarmonyPrefix]
-	private static void AffectTagDamage(ref DamageTag.DamageTagInstance damageTagInstance) {
+	static void AffectTagDamage(ref DamageTag.DamageTagInstance damageTagInstance) {
 		// DamageTagInstance.isHeroDamage is based on whether or not the source is a tool
-		if (!SifCrest.IsEquipped || !damageTagInstance.isHeroDamage)
-			return;
-
-		damageTagInstance.amount = ApplyBonusToDamage(damageTagInstance.amount);
+		if (SifCrest.IsEquipped && damageTagInstance.isHeroDamage)
+			damageTagInstance.amount = ApplyBonusToDamage(damageTagInstance.amount);
 	}
 
 }

@@ -6,14 +6,12 @@
 				"Name": "Traveller HUD Idle",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [ "HUD.hud_ss_full.png" ]
 			},
 			{
 				"Name": "Traveller HUD Appear",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [
 					"HUD.hud_ss_0.png",
 					"HUD.hud_ss_1.png",
@@ -25,7 +23,6 @@
 				"Name": "Traveller HUD Disappear",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [
 					"HUD.hud_ss_full.png",
 					"HUD.hud_ss_2.png",
@@ -42,14 +39,12 @@
 				"Name": "Traveller HUD Idle",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [ "HUD.hud_full.png" ]
 			},
 			{
 				"Name": "Traveller HUD Appear",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [
 					"HUD.hud_0.png",
 					"HUD.hud_1.png",
@@ -61,7 +56,6 @@
 				"Name": "Traveller HUD Disappear",
 				"Fps": 15,
 				"WrapMode": "Once",
-				"Triggers": [],
 				"Frames": [
 					"HUD.hud_full.png",
 					"HUD.hud_2.png",

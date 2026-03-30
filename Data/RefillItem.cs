@@ -3,15 +3,15 @@
 namespace TravellerCrest.Data;
 
 internal class RefillItem : SavedItem {
-
 	public ToolItem tool;
 	public int amountRefunded = 1;
 
 	public override bool CanGetMore() => true;
+	public override Sprite GetPopupIcon() => tool.GetPopupIcon();
+	public override string GetPopupName() => $"{tool.GetPopupName()} ({amountRefunded})";
 
 	public override void Get(bool showPopup = true) {
 		tool.CollectFree(amountRefunded);
-
 		CollectableUIMsg.Spawn(new UIMsgDisplay {
 			Name = GetPopupName(),
 			Icon = GetPopupIcon(),
@@ -19,8 +19,4 @@ internal class RefillItem : SavedItem {
 			RepresentingObject = this,
 		});
 	}
-
-	public override Sprite GetPopupIcon() => tool.GetPopupIcon();
-
-	public override string GetPopupName() => $"{tool.GetPopupName()} ({amountRefunded})";
 }

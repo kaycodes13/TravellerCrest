@@ -55,7 +55,7 @@ internal static class Moveset {
 		ChargedSlash();
 	}
 
-	private static void SimpleAttacks() {
+	static void SimpleAttacks() {
 		Config.wallSlashSlowdown = false;
 		Config.SetAttackFields(
 			time: 0.25f, recovery: 0.1f, cooldown: 0.3f,
@@ -139,9 +139,9 @@ internal static class Moveset {
 
 	#region Alt Wall Slash
 
-	[HarmonyPatch(typeof(HeroController), nameof(HeroController.Attack))]
+	[HarmonyPatch(typeof(HeroController), "Attack")]
 	[HarmonyPostfix]
-	private static void AltWallSlash(HeroController __instance, AttackDirection attackDir) {
+	static void AltWallSlash(HeroController __instance, AttackDirection attackDir) {
 		if (!SifCrest.IsEquipped)
 			return;
 
@@ -168,14 +168,14 @@ internal static class Moveset {
 
 	#region Down Slash
 
-	private static void DownSlash() {
+	static void DownSlash() {
 		Config.SetDownspikeFields(recoveryTime: 0.2f);
 		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
 
 		Moves.DownSlash = new DownAttack {
 			Name = "Down",
-			AnimLibrary = AnimationManager.MainLib,
 			AnimName = "Slash_Charged Effect",
+			AnimLibrary = AnimationManager.MainLib,
 			Hitbox = JUST_ATTACK_HITBOX,
 			Position = new(0.05f, -0.15f),
 			Rotation = Quaternion.Euler(0, 0, 40),
@@ -288,7 +288,7 @@ internal static class Moveset {
 	static DashAttack.Step DashSlashMain => Moves.DashSlash!.Steps[0];
 	static DashAttack.Step DashSlashLunge => Moves.DashSlash!.Steps[1];
 
-	private static void DashSlash() {
+	static void DashSlash() {
 		Config.DashSlashFsmEdit = DashSlashFsmEdit;
 
 		Moves.DashSlash = new DashAttack {
@@ -327,7 +327,7 @@ internal static class Moveset {
 		}
 	}
 
-	private static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+	static void DashSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault ownerHornet = new();
 
 		FsmState
@@ -517,7 +517,7 @@ internal static class Moveset {
 
 	static ChargedAttack.Step[] ChargeSteps => Moves.ChargedSlash!.Steps;
 
-	private static void ChargedSlash() {
+	static void ChargedSlash() {
 		Config.ChargedSlashFsmEdit = ChargedSlashFsmEdit;
 
 		float knockback = 0.1f, damage = 0.6667f;
@@ -570,7 +570,7 @@ internal static class Moveset {
 		}
 	}
 
-	private static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
+	static void ChargedSlashFsmEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
 		FsmOwnerDefault ownerHornet = new();
 
 		FsmState
