@@ -53,6 +53,29 @@ internal static class AnimationManager {
 		hasSetupHero = true;
 	}
 
+	/// <summary>
+	/// Returns the duration in seconds of a managed animation clip. If the duration
+	/// can't be determined the value will be < 0.
+	/// </summary>
+	/// <param name="name">Name of the clip to measure.</param>
+	/// <param name="libName">Optional library to search for the clip in. Default is <see cref="MainLib"/>.</param>
+	public static float GetClipDuration(string name, string libName = "main") {
+		if (libraries.TryGetValue(libName, out var l) && l.lookup.TryGetValue(name, out var c))
+			return c.clip.Duration;
+
+		if (hasSetupHero) return -1;
+
+		int i = Array.FindIndex(heroLibs, x => x.Name == libName);
+		if (i == -1) return -1;
+
+		int j = Array.FindIndex(heroLibs[i].Anims, x => x.Name == name);
+		if (j == -1) return -1;
+
+		var def = heroLibs[i].Anims[j];
+		if (def.Fps <= 0) return -1;
+
+		return def.FrameCount() / def.Fps;
+	}
 
 	/// <summary>
 	/// Serializable group of animation definitions, which can be initialized to convert
@@ -115,6 +138,27 @@ internal static class AnimationManager {
 		readonly string IAnimDef.Name {
 			get => Name ?? Copy?.Name ?? "";
 			set => _ = value;
+		}
+
+		/// <returns>
+		/// The number of frames in the animation, or -1 if the count is unclear.
+		/// </returns>
+		internal readonly int FrameCount() {
+			if (Composite == null || Composite.Length <= 0)
+				return -1;
+
+			int frames = 0;
+			foreach (var def in Composite) {
+				if (def.Frame == null && (def.Start == null || def.End == null))
+					return -1;
+
+				int start = def.Frame ?? def.Start ?? 0,
+					end = def.Frame ?? def.End ?? 0,
+					repeats = def.Repeat ?? 1;
+
+				frames += (end - start + 1) * repeats;
+			}
+			return frames;
 		}
 
 		readonly tk2dSpriteAnimationClip IAnimDef.MakeClip() {
@@ -221,7 +265,7 @@ internal static class AnimationManager {
 			};
 			if (Triggers != null)
 				foreach (int index in Triggers)
-				anim.frames[index].triggerEvent = true;
+					anim.frames[index].triggerEvent = true;
 			return anim;
 		}
 	}

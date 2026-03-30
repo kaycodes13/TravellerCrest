@@ -12,13 +12,16 @@
 			{ "Copy": { "Name": "UpSlash", "Crest": "Wanderer" } },
 
 			{
-				"Name": "DownSlash",
+				"Name": "DownSpike Antic",
 				"Fps": 14,
 				"WrapMode": "Once",
-				"Triggers": [ 1 ],
-				"Composite": [
-					{ "Start": 1, "End": 6, "Name": "ToolThrow Q" }
-				]
+				"Composite": [{ "Frame": 1, "Name": "ToolThrow Q" }]
+			},
+			{
+				"Name": "DownSpike",
+				"Fps": 14,
+				"WrapMode": "Once",
+				"Composite": [{ "Start": 2, "End": 6, "Name": "ToolThrow Q" }]
 			},
 
 			{

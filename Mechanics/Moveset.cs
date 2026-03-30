@@ -5,7 +5,7 @@ using HutongGames.PlayMaker.Actions;
 using Needleforge.Attacks;
 using Needleforge.Data;
 using Silksong.FsmUtil;
-using System;
+using System.Collections;
 using System.Linq;
 using TravellerCrest.Attacks;
 using TravellerCrest.Data;
@@ -169,8 +169,16 @@ internal static class Moveset {
 	#region Down Slash
 
 	static void DownSlash() {
-		Config.SetDownspikeFields(recoveryTime: 0.2f);
-		Config.SetCustomDownslash("TRAVELLER DOWNSLASH", DownslashEdit);
+		Config.downSlashType = HeroControllerConfig.DownSlashTypes.DownSpike;
+		Config.SetDownspikeFields(
+			anticTime: AnimationManager.GetClipDuration("DownSpike Antic"),
+			time: AnimationManager.GetClipDuration("DownSpike"),
+			recoveryTime: 0.2f,
+			velocity: new Vector2(8, 14),
+			acceleration: new Vector2(-25f, Physics2D.gravity.y),
+			doesThrust: true,
+			doesBurstEffect: false
+		);
 
 		Moves.DownSlash = new DownAttack {
 			Name = "Down",
@@ -185,99 +193,20 @@ internal static class Moveset {
 		Moves.OnInitialized += DownAttackInit;
 		static void DownAttackInit() {
 			Moves.DownSlash!.Sound = GetSound(GetCrest("Shaman").DownSlashObject);
-		}
-	}
+			var nab = Moves.DownSlash!.Get<NailAttackBase>();
+			nab.AttackStarting += () => nab.StartCoroutine(DashCancelCoro());
+		};
 
-	private static void DownslashEdit(PlayMakerFSM fsm, FsmState startState, out FsmState[] endStates) {
-		FsmOwnerDefault ownerHornet = new();
-
-		FsmState
-			slashState = fsm.AddState($"{SifId} Downslash"),
-			missState = fsm.AddState($"{SifId} End"),
-			bounceState = fsm.AddState($"{SifId} Bounce"),
-			dashCancelState = fsm.AddState($"{SifId} Dash Cancel");
-
-		startState.AddMethod(() => {
-			fsm.GetBoolVariable("Disabled Animation").Value = true;
-			fsm.GetBoolVariable("In Crest Attack").Value = true;
-			Hc.StopAnimationControl();
-			Hc.RelinquishControlNotVelocity();
-			Hc.AffectedByGravity(false);
-			Hc.QueueCancelDownAttack();
-			Hc.cState.isInCancelableFSMMove = true;
-
-			// Clamp out "downward" velocity in a way compatible with Glissando
-			Func<float, float, float>
-				clampFn = Hc.transform.localScale.y > 0 ? Mathf.Max : Mathf.Min;
-			Hc.rb2d.linearVelocityY = clampFn(0, Hc.rb2d.linearVelocityY);
-		});
-		startState.AddActions([
-			new DecelerateXY {
-				gameObject = ownerHornet,
-				decelerationX = 0.9f,
-				decelerationY = 0.7f,
-			},
-			new Tk2dPlayAnimationWithEvents {
-				gameObject = ownerHornet,
-				clipName = "DownSlash",
-				animationTriggerEvent = FsmEvent.Finished,
-			},
-		]);
-		startState.AddTransition(FsmEvent.Finished.name, slashState.name);
-		AddDashCancel(startState);
-
-		slashState.AddMethod(() => {
-			Hc.AffectedByGravity(true);
-			Hc.cState.downAttacking = true;
-			Moves.DownSlash!.StartAttack();
-		});
-		slashState.AddActions(
-			new SetVelocityByScale {
-				gameObject = ownerHornet,
-				speed = 8,
-				ySpeed = 14,
-			},
-			new DecelerateXY {
-				gameObject = ownerHornet,
-				decelerationX = 0.9f,
-				decelerationY = 1,
-			},
-			new Tk2dWatchAnimationEvents {
-				gameObject = ownerHornet,
-				animationCompleteEvent = FsmEvent.Finished,
+		static IEnumerator DashCancelCoro() {
+			while (Hc.cState.downSpikeAntic || Hc.cState.downSpiking) {
+				yield return null;
+				if (Hc.inputHandler.inputActions.Dash.WasPressed) {
+					Hc.SetStartWithDash();
+					Hc.CancelDownSpike();
+					Hc.RegainControl();
+					yield break;
+				}
 			}
-		);
-		slashState.AddTransitions(
-			(bounceState, ["ATTACK LANDED", "BOUNCE TINKED", "BOUNCE CANCEL"]),
-			(missState, ["LEAVING SCENE", FsmEvent.Finished.name])
-		);
-		AddDashCancel(slashState);
-
-		missState.AddMethod(() => {
-			Hc.cState.downAttacking = false;
-			Hc.FinishDownspike();
-		});
-
-		bounceState.AddMethod(() => {
-			Hc.rb2d.linearVelocity = Vector2.zero;
-			Hc.SetStartWithDownSpikeBounce();
-		});
-
-		dashCancelState.AddMethod(() => {
-			Moves.DownSlash!.EndAttack();
-			Hc.SetStartWithDash();
-		});
-
-		endStates = [missState, bounceState, dashCancelState];
-
-		void AddDashCancel(FsmState state) {
-			FsmEvent dashEvent = FsmEvent.GetFsmEvent("SPRINT");
-			state.AddAction(new ListenForDash {
-				wasPressed = dashEvent,
-				delayBeforeActive = 0f,
-				BlocksFinish = false,
-			});
-			state.AddTransition(dashEvent.name, dashCancelState.name);
 		}
 	}
 
